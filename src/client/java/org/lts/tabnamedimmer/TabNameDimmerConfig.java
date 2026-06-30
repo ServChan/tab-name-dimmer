@@ -48,16 +48,21 @@ public enum DisplayMode {
         return instance;
     }
 
-    public static TabNameDimmerConfig loadIfChanged() {
-        try {
-            long modified = Files.exists(CONFIG_PATH) ? Files.getLastModifiedTime(CONFIG_PATH).toMillis() : -1L;
-            if (modified != lastModified) {
-                return load();
-            }
-        } catch (IOException exception) {
-            TabNameDimmerClient.LOGGER.warn("Failed to check {}", CONFIG_PATH, exception);
-        }
+    private static long nextCheckTime = 0;
 
+    public static TabNameDimmerConfig loadIfChanged() {
+        long now = System.currentTimeMillis();
+        if (now > nextCheckTime) {
+            nextCheckTime = now + 1000L;
+            try {
+                long modified = Files.exists(CONFIG_PATH) ? Files.getLastModifiedTime(CONFIG_PATH).toMillis() : -1L;
+                if (modified != lastModified) {
+                    return load();
+                }
+            } catch (IOException exception) {
+                TabNameDimmerClient.LOGGER.warn("Failed to check {}", CONFIG_PATH, exception);
+            }
+        }
         return instance;
     }
 

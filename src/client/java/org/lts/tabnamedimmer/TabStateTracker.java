@@ -15,6 +15,7 @@ public class TabStateTracker {
 
     private final Map<UUID, Float> displayWeights = new HashMap<>();
     private long lastUpdateTime = System.currentTimeMillis();
+    private long lastCleanupTime = System.currentTimeMillis();
 
     public Stream<PlayerInfo> processPlayers(Stream<PlayerInfo> stream, Comparator<? super PlayerInfo> originalComparator) {
         TabNameDimmerConfig config = TabNameDimmerConfig.loadIfChanged();
@@ -23,6 +24,12 @@ public class TabStateTracker {
         long now = System.currentTimeMillis();
         float dt = (now - lastUpdateTime) / 1000f;
         lastUpdateTime = now;
+
+        if (now - lastCleanupTime > 5000L) {
+            lastCleanupTime = now;
+            java.util.Set<UUID> currentUUIDs = originalList.stream().map(p -> p.getProfile().id()).collect(Collectors.toSet());
+            displayWeights.keySet().retainAll(currentUUIDs);
+        }
         
         // Cap dt to prevent massive jumps on lag spikes
         if (dt > 0.1f) dt = 0.1f;
@@ -47,12 +54,13 @@ public class TabStateTracker {
                 
                 // Lerp currentWeight towards targetWeight
                 float diff = targetWeight - currentWeight;
-                float move = diff * (config.animationSpeed * 10f) * dt * 60f; // Scale speed for 60fps baseline
-                
+                float fraction = config.animationSpeed * 10f * dt * 60f;
+                if (fraction > 1f) fraction = 1f; // Prevent overshoot/oscillation
+
                 if (Math.abs(diff) < 0.1f) {
                     currentWeight = targetWeight;
                 } else {
-                    currentWeight += move;
+                    currentWeight += diff * fraction;
                 }
                 
                 displayWeights.put(uuid, currentWeight);

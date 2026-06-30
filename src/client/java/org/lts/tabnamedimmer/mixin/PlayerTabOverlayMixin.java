@@ -58,7 +58,7 @@ public class PlayerTabOverlayMixin {
         int boxHeight = whitelisted.size() * 9 + padding * 2;
         
         int x = width / 2 - boxWidth / 2;
-        int y = mc.getWindow().getGuiScaledHeight() - boxHeight - 40; // 40 pixels from bottom to avoid hotbar
+        int y = Math.max(10, mc.getWindow().getGuiScaledHeight() - boxHeight - 40); // 40 pixels from bottom to avoid hotbar
 
         // Draw background
         graphics.fill(x, y, x + boxWidth, y + boxHeight, 0x80000000);
