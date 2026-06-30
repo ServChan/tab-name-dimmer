@@ -1,0 +1,18 @@
+{
+  "tabnamedimmer.screen.title": "Затемнение ников в Tab",
+  "tabnamedimmer.option.enabled": "Включено: %s",
+  "tabnamedimmer.option.case_sensitive": "Учитывать регистр: %s",
+  "tabnamedimmer.option.dim_color": "Цвет затемнения",
+  "tabnamedimmer.field.allowed_names": "Ники, которые не затемнять",
+  "tabnamedimmer.hint.allowed_names": "Steve, Alex, PlayerName",
+  "tabnamedimmer.button.import_txt": "Импорт .txt",
+  "tabnamedimmer.button.save": "Сохранить",
+  "tabnamedimmer.button.cancel": "Отмена",
+  "tabnamedimmer.import.title": "Импорт ников из .txt",
+  "tabnamedimmer.import.added": "Добавлено: %s",
+  "tabnamedimmer.import.failed": "Не удалось импортировать",
+  "tabnamedimmer.import.not_txt": "Выберите .txt файл",
+  "tabnamedimmer.import.no_dialog": "Выбор файла недоступен",
+  "tabnamedimmer.state.on": "Да",
+  "tabnamedimmer.state.off": "Нет"
+}

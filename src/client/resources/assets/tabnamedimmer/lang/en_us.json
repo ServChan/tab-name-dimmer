@@ -1,0 +1,18 @@
+{
+  "tabnamedimmer.screen.title": "Tab Name Dimmer",
+  "tabnamedimmer.option.enabled": "Enabled: %s",
+  "tabnamedimmer.option.case_sensitive": "Case sensitive: %s",
+  "tabnamedimmer.option.dim_color": "Dim color",
+  "tabnamedimmer.field.allowed_names": "Names that stay bright",
+  "tabnamedimmer.hint.allowed_names": "Steve, Alex, PlayerName",
+  "tabnamedimmer.button.import_txt": "Import .txt",
+  "tabnamedimmer.button.save": "Save",
+  "tabnamedimmer.button.cancel": "Cancel",
+  "tabnamedimmer.import.title": "Import names from .txt",
+  "tabnamedimmer.import.added": "Added: %s",
+  "tabnamedimmer.import.failed": "Import failed",
+  "tabnamedimmer.import.not_txt": "Choose a .txt file",
+  "tabnamedimmer.import.no_dialog": "File dialog is unavailable",
+  "tabnamedimmer.state.on": "On",
+  "tabnamedimmer.state.off": "Off"
+}

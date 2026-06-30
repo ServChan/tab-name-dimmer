@@ -1,0 +1,293 @@
+package org.lts.tabnamedimmer.gui;
+
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.ContainerObjectSelectionList;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
+import org.lts.tabnamedimmer.TabNameDimmerConfig;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Locale;
+
+public class TabNameDimmerConfigScreen extends Screen {
+    private static final int FIELD_HEIGHT = 20;
+    private static final int ROW_HEIGHT = 26;
+
+    private final Screen parent;
+    private final TabNameDimmerConfig config;
+
+    private Button enabledButton;
+    private Button caseSensitiveButton;
+    private EditBox dimColor;
+    private NameList nameList;
+    private String importMessage = "";
+
+    public TabNameDimmerConfigScreen(Screen parent) {
+        super(Component.translatable("tabnamedimmer.screen.title"));
+        this.parent = parent;
+        this.config = TabNameDimmerConfig.currentCopy();
+    }
+
+    @Override
+    protected void init() {
+        int contentWidth = Math.min(520, this.width - 40);
+        int left = (this.width - contentWidth) / 2;
+        int y = 44;
+
+        enabledButton = addRenderableWidget(Button.builder(enabledLabel(), button -> {
+            config.enabled = !config.enabled;
+            button.setMessage(enabledLabel());
+        }).bounds(left, y, 250, FIELD_HEIGHT).build());
+
+        caseSensitiveButton = addRenderableWidget(Button.builder(caseSensitiveLabel(), button -> {
+            config.caseSensitive = !config.caseSensitive;
+            button.setMessage(caseSensitiveLabel());
+        }).bounds(left + contentWidth - 250, y, 250, FIELD_HEIGHT).build());
+
+        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.import_txt"), button -> importNamesFromTxt())
+                .bounds(left + contentWidth - 130, 74, 130, FIELD_HEIGHT)
+                .build());
+
+        y += 54;
+        int listBottom = Math.max(y + ROW_HEIGHT, this.height - 82);
+        nameList = addRenderableWidget(new NameList(left, y, contentWidth, listBottom - y));
+        for (String name : config.allowedNames) {
+            nameList.addName(name);
+        }
+        nameList.ensureTrailingEmptyRow();
+
+        y = this.height - 58;
+        dimColor = new EditBox(this.font, left, y, 120, FIELD_HEIGHT, Component.translatable("tabnamedimmer.option.dim_color"));
+        dimColor.setValue(String.format("#%06X", config.dimColor));
+        dimColor.setMaxLength(7);
+        addRenderableWidget(dimColor);
+
+        int buttonY = this.height - 30;
+        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.save"), button -> saveAndClose())
+                .bounds(this.width / 2 - 155, buttonY, 150, 20)
+                .build());
+        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.cancel"), button -> this.minecraft.setScreen(parent))
+                .bounds(this.width / 2 + 5, buttonY, 150, 20)
+                .build());
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
+        graphics.fill(0, 0, this.width, this.height, 0xF010141C);
+        graphics.centeredText(this.font, this.title, this.width / 2, 16, 0xFFFFFFFF);
+
+        int contentWidth = Math.min(520, this.width - 40);
+        int left = (this.width - contentWidth) / 2;
+        graphics.text(this.font, Component.translatable("tabnamedimmer.field.allowed_names"), left, 78, 0xFFD8DEE9);
+        if (!importMessage.isBlank()) {
+            graphics.text(this.font, Component.literal(importMessage), left + 132, 78, 0xFF88C0D0);
+        }
+        graphics.text(this.font, Component.translatable("tabnamedimmer.option.dim_color"), left, this.height - 72, 0xFFD8DEE9);
+
+        super.extractRenderState(graphics, mouseX, mouseY, tickDelta);
+    }
+
+    @Override
+    public void onClose() {
+        this.minecraft.setScreen(parent);
+    }
+
+    private void saveAndClose() {
+        config.allowedNames = nameList.names();
+        config.dimColor = parseColor(dimColor.getValue(), config.dimColor);
+        TabNameDimmerConfig.save(config);
+        this.minecraft.setScreen(parent);
+    }
+
+    private Component enabledLabel() {
+        return Component.translatable("tabnamedimmer.option.enabled", onOff(config.enabled));
+    }
+
+    private Component caseSensitiveLabel() {
+        return Component.translatable("tabnamedimmer.option.case_sensitive", onOff(config.caseSensitive));
+    }
+
+    private static Component onOff(boolean value) {
+        return Component.translatable(value ? "tabnamedimmer.state.on" : "tabnamedimmer.state.off");
+    }
+
+    private static int parseColor(String value, int fallback) {
+        String normalized = value == null ? "" : value.trim();
+        if (normalized.startsWith("#")) {
+            normalized = normalized.substring(1);
+        }
+        try {
+            return Integer.parseInt(normalized, 16) & 0xFFFFFF;
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+    }
+
+    private void importNamesFromTxt() {
+        String selectedFile = TinyFileDialogs.tinyfd_openFileDialog(
+                Component.translatable("tabnamedimmer.import.title").getString(),
+                "",
+                null,
+                null,
+                false
+        );
+
+        if (selectedFile == null || selectedFile.isBlank()) {
+            return;
+        }
+        if (!selectedFile.toLowerCase(Locale.ROOT).endsWith(".txt")) {
+            importMessage = Component.translatable("tabnamedimmer.import.not_txt").getString();
+            return;
+        }
+
+        try {
+            List<String> imported = Files.readAllLines(Path.of(selectedFile), StandardCharsets.UTF_8);
+            int added = nameList.addNames(imported, config.caseSensitive);
+            importMessage = Component.translatable("tabnamedimmer.import.added", added).getString();
+        } catch (IOException | RuntimeException exception) {
+            importMessage = Component.translatable("tabnamedimmer.import.failed").getString();
+        }
+    }
+
+    private class NameList extends ContainerObjectSelectionList<NameEntry> {
+        private final int left;
+        private final int rowWidth;
+
+        NameList(int left, int top, int width, int height) {
+            super(TabNameDimmerConfigScreen.this.minecraft, width, height, top, ROW_HEIGHT);
+            this.left = left;
+            this.rowWidth = width;
+            setX(left);
+            setWidth(width);
+            setHeight(height);
+        }
+
+        void addName(String name) {
+            addEntry(new NameEntry(this, name));
+        }
+
+        int addNames(List<String> importedNames, boolean caseSensitive) {
+            Map<String, String> merged = new LinkedHashMap<>();
+            for (String name : names()) {
+                merged.put(dedupeKey(name, caseSensitive), name);
+            }
+
+            int added = 0;
+            for (String importedName : importedNames) {
+                String name = cleanImportedName(importedName);
+                if (name.isBlank()) {
+                    continue;
+                }
+                String key = dedupeKey(name, caseSensitive);
+                if (!merged.containsKey(key)) {
+                    merged.put(key, name);
+                    added++;
+                }
+            }
+
+            clearEntries();
+            for (String name : merged.values()) {
+                addName(name);
+            }
+            ensureTrailingEmptyRow();
+            return added;
+        }
+
+        void ensureTrailingEmptyRow() {
+            if (children().isEmpty() || !children().get(children().size() - 1).value().isBlank()) {
+                addName("");
+            }
+        }
+
+        List<String> names() {
+            List<String> names = new ArrayList<>();
+            for (NameEntry entry : children()) {
+                String name = entry.value().trim();
+                if (!name.isBlank()) {
+                    names.add(name);
+                }
+            }
+            return names;
+        }
+
+        @Override
+        public int getRowLeft() {
+            return left;
+        }
+
+        @Override
+        public int getRowRight() {
+            return left + rowWidth;
+        }
+
+        @Override
+        public int getRowWidth() {
+            return rowWidth;
+        }
+
+        private String cleanImportedName(String name) {
+            String cleaned = name == null ? "" : name.strip();
+            if (!cleaned.isEmpty() && cleaned.charAt(0) == '\uFEFF') {
+                cleaned = cleaned.substring(1).strip();
+            }
+            return cleaned;
+        }
+
+        private String dedupeKey(String name, boolean caseSensitive) {
+            String trimmed = name.trim();
+            return caseSensitive ? trimmed : trimmed.toLowerCase(Locale.ROOT);
+        }
+    }
+
+    private class NameEntry extends ContainerObjectSelectionList.Entry<NameEntry> {
+        private final NameList list;
+        private final EditBox nameField;
+
+        NameEntry(NameList list, String name) {
+            this.list = list;
+            this.nameField = new EditBox(TabNameDimmerConfigScreen.this.font, 0, 0, list.rowWidth - 12, FIELD_HEIGHT,
+                    Component.translatable("tabnamedimmer.hint.allowed_names"));
+            this.nameField.setValue(name);
+            this.nameField.setMaxLength(64);
+            this.nameField.setHint(Component.translatable("tabnamedimmer.hint.allowed_names"));
+            this.nameField.setResponder(value -> list.ensureTrailingEmptyRow());
+        }
+
+        String value() {
+            return nameField.getValue();
+        }
+
+        @Override
+        public List<? extends net.minecraft.client.gui.narration.NarratableEntry> narratables() {
+            return List.of(nameField);
+        }
+
+        @Override
+        public List<? extends net.minecraft.client.gui.components.events.GuiEventListener> children() {
+            return List.of(nameField);
+        }
+
+        @Override
+        public void visitWidgets(java.util.function.Consumer<net.minecraft.client.gui.components.AbstractWidget> consumer) {
+            consumer.accept(nameField);
+        }
+
+        @Override
+        public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float tickDelta) {
+            nameField.setX(getContentX() + 4);
+            nameField.setY(getContentY() + 3);
+            nameField.setWidth(getContentWidth() - 8);
+            nameField.extractWidgetRenderState(graphics, mouseX, mouseY, tickDelta);
+        }
+    }
+}

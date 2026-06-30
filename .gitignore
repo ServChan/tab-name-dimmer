@@ -1,0 +1,8 @@
+.gradle/
+build/
+*.log
+out/
+bin/
+.idea/
+*.iml
+webmap_cache/
