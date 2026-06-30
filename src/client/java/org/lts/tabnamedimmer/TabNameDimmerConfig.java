@@ -22,9 +22,15 @@ public class TabNameDimmerConfig {
     private static TabNameDimmerConfig instance = defaults();
     private static long lastModified = -1L;
 
+public enum DisplayMode {
+        ANIMATED_SORT, FILTER, EXTRA_HUD
+    }
+
     public boolean enabled = true;
     public boolean caseSensitive = false;
     public int dimColor = 0x555555;
+    public DisplayMode displayMode = DisplayMode.ANIMATED_SORT;
+    public float animationSpeed = 0.05f;
     public List<String> allowedNames = new ArrayList<>();
 
     public static TabNameDimmerConfig load() {
@@ -126,6 +132,8 @@ public class TabNameDimmerConfig {
         copy.enabled = enabled;
         copy.caseSensitive = caseSensitive;
         copy.dimColor = dimColor;
+        copy.displayMode = displayMode;
+        copy.animationSpeed = animationSpeed;
         copy.allowedNames = new ArrayList<>(allowedNames);
         return copy;
     }

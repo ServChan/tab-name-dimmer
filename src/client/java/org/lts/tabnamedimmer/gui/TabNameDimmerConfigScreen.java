@@ -54,11 +54,18 @@ public class TabNameDimmerConfigScreen extends Screen {
             button.setMessage(caseSensitiveLabel());
         }).bounds(left + contentWidth - 250, y, 250, FIELD_HEIGHT).build());
 
+        y += 24;
+
+        addRenderableWidget(Button.builder(displayModeLabel(), button -> {
+            config.displayMode = TabNameDimmerConfig.DisplayMode.values()[(config.displayMode.ordinal() + 1) % TabNameDimmerConfig.DisplayMode.values().length];
+            button.setMessage(displayModeLabel());
+        }).bounds(left, y, 250, FIELD_HEIGHT).build());
+
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.import_txt"), button -> importNamesFromTxt())
-                .bounds(left + contentWidth - 130, 74, 130, FIELD_HEIGHT)
+                .bounds(left + contentWidth - 130, y, 130, FIELD_HEIGHT)
                 .build());
 
-        y += 54;
+        y += 30;
         int listBottom = Math.max(y + ROW_HEIGHT, this.height - 82);
         nameList = addRenderableWidget(new NameList(left, y, contentWidth, listBottom - y));
         for (String name : config.allowedNames) {
@@ -111,6 +118,10 @@ public class TabNameDimmerConfigScreen extends Screen {
 
     private Component enabledLabel() {
         return Component.translatable("tabnamedimmer.option.enabled", onOff(config.enabled));
+    }
+
+    private Component displayModeLabel() {
+        return Component.translatable("tabnamedimmer.option.mode", config.displayMode.name());
     }
 
     private Component caseSensitiveLabel() {

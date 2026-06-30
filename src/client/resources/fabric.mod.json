@@ -4,6 +4,7 @@
   "version": "${version}",
   "name": "Tab Name Dimmer",
   "description": "Dims non-whitelisted player names in the tab list while Shift is held.",
+  "icon": "assets/tabnamedimmer/icon.png",
   "authors": [
     "LTS_Server"
   ],

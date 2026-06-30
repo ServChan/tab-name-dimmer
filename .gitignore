@@ -1,8 +1,36 @@
+# Gradle
 .gradle/
 build/
-*.log
 out/
-bin/
+classes/
+run/
+.gradletasknamecache
+
+# Local artifacts and scratch files
+/libs/
+/mappings/
+/assets/
+runs/
+logs/
+crash-reports/
+*.log
+hs_err_pid*
+replay_pid*
+javap*.txt
+
+# IDE
 .idea/
 *.iml
-webmap_cache/
+.vscode/
+.claude/
+.qoder/
+.settings/
+.classpath
+.project
+.factorypath
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -14,5 +14,6 @@
   "tabnamedimmer.import.not_txt": "Выберите .txt файл",
   "tabnamedimmer.import.no_dialog": "Выбор файла недоступен",
   "tabnamedimmer.state.on": "Да",
-  "tabnamedimmer.state.off": "Нет"
+  "tabnamedimmer.state.off": "Нет",
+  "tabnamedimmer.option.mode": "Режим: %s"
 }

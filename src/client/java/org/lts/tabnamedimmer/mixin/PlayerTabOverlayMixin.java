@@ -31,4 +31,43 @@ public class PlayerTabOverlayMixin {
         }
         callbackInfo.setReturnValue(dimmedName);
     }
+
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    private void tabnamedimmer$renderExtraHud(net.minecraft.client.gui.GuiGraphicsExtractor graphics, int width, net.minecraft.world.scores.Scoreboard scoreboard, net.minecraft.world.scores.Objective objective, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (!TabNameDimmerClient.isShiftDown()) return;
+        TabNameDimmerConfig config = TabNameDimmerConfig.loadIfChanged();
+        if (config.displayMode != TabNameDimmerConfig.DisplayMode.EXTRA_HUD) return;
+
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc.player == null || mc.player.connection == null) return;
+
+        java.util.List<PlayerInfo> whitelisted = mc.player.connection.getListedOnlinePlayers().stream()
+                .filter(p -> !config.shouldDim(p.getProfile().name()))
+                .toList();
+
+        if (whitelisted.isEmpty()) return;
+
+        net.minecraft.client.gui.Font font = mc.font;
+        int maxNameWidth = 0;
+        for (PlayerInfo p : whitelisted) {
+            maxNameWidth = Math.max(maxNameWidth, font.width(p.getProfile().name()));
+        }
+
+        int padding = 5;
+        int boxWidth = maxNameWidth + padding * 2;
+        int boxHeight = whitelisted.size() * 9 + padding * 2;
+        
+        int x = width / 2 - boxWidth / 2;
+        int y = mc.getWindow().getGuiScaledHeight() - boxHeight - 40; // 40 pixels from bottom to avoid hotbar
+
+        // Draw background
+        graphics.fill(x, y, x + boxWidth, y + boxHeight, 0x80000000);
+
+        // Draw names
+        int currentY = y + padding;
+        for (PlayerInfo p : whitelisted) {
+            graphics.text(font, net.minecraft.network.chat.Component.literal(p.getProfile().name()), x + padding, currentY, -1);
+            currentY += 9;
+        }
+    }
 }

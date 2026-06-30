@@ -14,5 +14,6 @@
   "tabnamedimmer.import.not_txt": "Choose a .txt file",
   "tabnamedimmer.import.no_dialog": "File dialog is unavailable",
   "tabnamedimmer.state.on": "On",
-  "tabnamedimmer.state.off": "Off"
+  "tabnamedimmer.state.off": "Off",
+  "tabnamedimmer.option.mode": "Mode: %s"
 }
