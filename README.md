@@ -1,17 +1,21 @@
 # Tab Name Dimmer
 
-Client-side Fabric mod for Minecraft that makes the Tab player list easier to scan by dimming, filtering, sorting, or separately showing selected player names while Shift is held.
+Client-side Fabric mod for Minecraft that makes the Tab player list easier to scan on large servers by dimming, filtering, sorting, or separately showing selected player names while Shift is held.
 
 ## Русский
 
 ### Что это
 
-Tab Name Dimmer это клиентский Fabric-мод для Minecraft, который помогает быстро находить нужных игроков в списке Tab на больших серверах.
+Tab Name Dimmer это клиентский Fabric-мод для Minecraft, который помогает быстро находить нужных игроков в списке Tab на больших серверах, где полный онлайн уже не помещается на экране.
 
 Мод работает от удержания `Shift`: когда открыт список игроков, он выделяет ники из вашего списка исключений, а остальных игроков затемняет, скрывает или оставляет ниже в списке в зависимости от выбранного режима.
 
+Основной сценарий - большие серверы, где нужно быстро понять, кто из вашего клана, команды или списка друзей сейчас онлайн, даже если обычный Tab переполнен и не показывает всех игроков сразу.
+
 Он полезен в тех случаях, когда:
 - на сервере много игроков и нужные ники сложно найти глазами;
+- онлайн настолько большой, что обычный Tab не вмещает весь список игроков;
+- нужно видеть состав своего клана, команды или группы прямо во время игры;
 - нужно быстро отслеживать друзей, участников команды, администрацию или важных игроков;
 - хочется оставить обычный Tab чистым, но иметь быстрый способ сфокусироваться на выбранных никах;
 - нужно импортировать список игроков из заранее подготовленного `.txt` файла.
@@ -102,12 +106,16 @@ gradlew.bat clean build
 
 ### What It Is
 
-Tab Name Dimmer is a client-side Fabric mod for Minecraft that makes it easier to find important players in the Tab player list on crowded servers.
+Tab Name Dimmer is a client-side Fabric mod for Minecraft that makes it easier to find important players in the Tab player list on large servers where the full online player list no longer fits on screen.
 
 The mod is activated by holding `Shift`: while the player list is open, it highlights the names from your allowlist and dims, hides, or moves other players depending on the selected display mode.
 
+The main use case is large multiplayer servers where you want to quickly see which clan members, teammates, or friends are online, even when the normal Tab list is too crowded to show everyone at once.
+
 It is useful when:
 - a server has many online players and important names are hard to spot;
+- the online player count is larger than the regular Tab list can comfortably display;
+- you need to see your clan, team, or group roster while playing;
 - you need to track friends, teammates, staff members, or specific players quickly;
 - you want to keep the normal Tab list unchanged until you explicitly hold `Shift`;
 - you want to import a prepared player list from a `.txt` file.
