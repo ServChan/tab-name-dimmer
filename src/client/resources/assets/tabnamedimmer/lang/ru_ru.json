@@ -3,6 +3,7 @@
   "tabnamedimmer.option.enabled": "Включено: %s",
   "tabnamedimmer.option.case_sensitive": "Учитывать регистр: %s",
   "tabnamedimmer.option.dim_color": "Цвет затемнения",
+  "tabnamedimmer.option.glowing": "Контур свечения: %s",
   "tabnamedimmer.field.allowed_names": "Ники, которые не затемнять",
   "tabnamedimmer.hint.allowed_names": "Steve, Alex, PlayerName",
   "tabnamedimmer.button.import_txt": "Импорт .txt",

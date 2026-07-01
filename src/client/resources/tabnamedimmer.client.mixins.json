@@ -5,7 +5,9 @@
   "compatibilityLevel": "JAVA_17",
   "client": [
     "PlayerTabOverlayMixin",
-    "PlayerTabOverlaySortingMixin"
+    "PlayerTabOverlaySortingMixin",
+    "EntityGlowingMixin",
+    "compat.BetterTabToolsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

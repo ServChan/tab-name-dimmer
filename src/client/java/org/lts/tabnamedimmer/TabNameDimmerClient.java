@@ -25,4 +25,12 @@ public class TabNameDimmerClient implements ClientModInitializer {
         return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
                 || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
     }
+
+    public static boolean isTabListOpen() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft == null || minecraft.options == null) {
+            return false;
+        }
+        return minecraft.options.keyPlayerList.isDown();
+    }
 }

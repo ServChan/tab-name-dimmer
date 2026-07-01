@@ -28,6 +28,7 @@ public enum DisplayMode {
 
     public boolean enabled = true;
     public boolean caseSensitive = false;
+    public boolean glowingEnabled = false;
     public int dimColor = 0x555555;
     public DisplayMode displayMode = DisplayMode.ANIMATED_SORT;
     public float animationSpeed = 0.05f;
@@ -85,19 +86,21 @@ public enum DisplayMode {
         }
     }
 
+    private transient Set<String> normalizedNamesCache = null;
+
     public boolean shouldDim(String playerName) {
         if (!enabled || playerName == null || playerName.isBlank()) {
             return false;
         }
 
-        String checkedName = normalize(playerName);
-        for (String allowedName : allowedNames) {
-            if (checkedName.equals(normalize(allowedName))) {
-                return false;
+        if (normalizedNamesCache == null) {
+            normalizedNamesCache = new LinkedHashSet<>();
+            for (String allowedName : allowedNames) {
+                normalizedNamesCache.add(normalize(allowedName));
             }
         }
 
-        return true;
+        return !normalizedNamesCache.contains(normalize(playerName));
     }
 
     public String allowedNamesText() {
@@ -106,6 +109,7 @@ public enum DisplayMode {
 
     public void setAllowedNamesFromText(String text) {
         allowedNames = parseNames(text);
+        normalizedNamesCache = null;
     }
 
     private String normalize(String name) {
@@ -136,6 +140,7 @@ public enum DisplayMode {
         TabNameDimmerConfig copy = new TabNameDimmerConfig();
         copy.enabled = enabled;
         copy.caseSensitive = caseSensitive;
+        copy.glowingEnabled = glowingEnabled;
         copy.dimColor = dimColor;
         copy.displayMode = displayMode;
         copy.animationSpeed = animationSpeed;
@@ -149,6 +154,7 @@ public enum DisplayMode {
         }
         config.allowedNames = parseNames(String.join(",", config.allowedNames));
         config.dimColor = config.dimColor & 0xFFFFFF;
+        config.normalizedNamesCache = null;
         return config;
     }
 

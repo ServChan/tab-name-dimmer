@@ -3,6 +3,7 @@
   "tabnamedimmer.option.enabled": "Enabled: %s",
   "tabnamedimmer.option.case_sensitive": "Case sensitive: %s",
   "tabnamedimmer.option.dim_color": "Dim color",
+  "tabnamedimmer.option.glowing": "Glowing Outline: %s",
   "tabnamedimmer.field.allowed_names": "Names that stay bright",
   "tabnamedimmer.hint.allowed_names": "Steve, Alex, PlayerName",
   "tabnamedimmer.button.import_txt": "Import .txt",
