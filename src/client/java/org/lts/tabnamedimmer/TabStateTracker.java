@@ -14,7 +14,7 @@ public class TabStateTracker {
     public static final TabStateTracker INSTANCE = new TabStateTracker();
 
     private final Map<UUID, Float> displayWeights = new HashMap<>();
-    private long lastUpdateTime = System.currentTimeMillis();
+    private long lastUpdateTimeNanos = System.nanoTime();
     private long lastCleanupTime = System.currentTimeMillis();
 
     public Stream<PlayerInfo> processPlayers(Stream<PlayerInfo> stream, Comparator<? super PlayerInfo> originalComparator) {
@@ -22,8 +22,9 @@ public class TabStateTracker {
         List<PlayerInfo> originalList = stream.sorted(originalComparator).collect(Collectors.toList());
 
         long now = System.currentTimeMillis();
-        float dt = (now - lastUpdateTime) / 1000f;
-        lastUpdateTime = now;
+        long currentNanos = System.nanoTime();
+        float dt = Math.max(0.0F, Math.min(0.1F, (currentNanos - lastUpdateTimeNanos) / 1_000_000_000F));
+        lastUpdateTimeNanos = currentNanos;
 
         if (now - lastCleanupTime > 5000L) {
             lastCleanupTime = now;
@@ -31,9 +32,6 @@ public class TabStateTracker {
             displayWeights.keySet().retainAll(currentUUIDs);
         }
         
-        // Cap dt to prevent massive jumps on lag spikes
-        if (dt > 0.1f) dt = 0.1f;
-
         boolean shiftDown = TabNameDimmerClient.isShiftDown();
 
         if (config.displayMode == TabNameDimmerConfig.DisplayMode.FILTER && shiftDown) {

@@ -5,6 +5,7 @@
   "tabnamedimmer.option.dim_color": "Dim color",
   "tabnamedimmer.option.glowing": "Glowing Outline: %s",
   "tabnamedimmer.field.allowed_names": "Names that stay bright",
+  "tabnamedimmer.field.allowed_names_count": "Names that stay bright (%s)",
   "tabnamedimmer.hint.allowed_names": "Steve, Alex, PlayerName",
   "tabnamedimmer.button.import_txt": "Import .txt",
   "tabnamedimmer.button.save": "Save",
@@ -16,5 +17,10 @@
   "tabnamedimmer.import.no_dialog": "File dialog is unavailable",
   "tabnamedimmer.state.on": "On",
   "tabnamedimmer.state.off": "Off",
-  "tabnamedimmer.option.mode": "Mode: %s"
+  "tabnamedimmer.option.mode": "Mode: %s",
+  "tabnamedimmer.mode.animated_sort": "Animated sorting",
+  "tabnamedimmer.mode.filter": "Show allowed only",
+  "tabnamedimmer.mode.extra_hud": "Separate compact list",
+  "tabnamedimmer.color.preview": "Preview",
+  "tabnamedimmer.color.invalid": "Use #RRGGBB"
 }

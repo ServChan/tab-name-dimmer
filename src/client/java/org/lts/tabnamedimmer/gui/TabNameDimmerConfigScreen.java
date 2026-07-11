@@ -28,6 +28,7 @@ public class TabNameDimmerConfigScreen extends Screen {
 
     private Button enabledButton;
     private Button caseSensitiveButton;
+    private Button saveButton;
     private EditBox dimColor;
     private NameList nameList;
     private String importMessage = "";
@@ -42,29 +43,31 @@ public class TabNameDimmerConfigScreen extends Screen {
     protected void init() {
         int contentWidth = Math.min(520, this.width - 40);
         int left = (this.width - contentWidth) / 2;
+        int columnGap = 8;
+        int columnWidth = (contentWidth - columnGap) / 2;
         int y = 44;
 
         enabledButton = addRenderableWidget(Button.builder(enabledLabel(), button -> {
             config.enabled = !config.enabled;
             button.setMessage(enabledLabel());
-        }).bounds(left, y, 250, FIELD_HEIGHT).build());
+        }).bounds(left, y, columnWidth, FIELD_HEIGHT).build());
 
         addRenderableWidget(Button.builder(displayModeLabel(), button -> {
             config.displayMode = TabNameDimmerConfig.DisplayMode.values()[(config.displayMode.ordinal() + 1) % TabNameDimmerConfig.DisplayMode.values().length];
             button.setMessage(displayModeLabel());
-        }).bounds(left + contentWidth - 250, y, 250, FIELD_HEIGHT).build());
+        }).bounds(left + columnWidth + columnGap, y, columnWidth, FIELD_HEIGHT).build());
 
         y += 24;
 
         caseSensitiveButton = addRenderableWidget(Button.builder(caseSensitiveLabel(), button -> {
             config.caseSensitive = !config.caseSensitive;
             button.setMessage(caseSensitiveLabel());
-        }).bounds(left, y, 250, FIELD_HEIGHT).build());
+        }).bounds(left, y, columnWidth, FIELD_HEIGHT).build());
 
         addRenderableWidget(Button.builder(glowingEnabledLabel(), button -> {
             config.glowingEnabled = !config.glowingEnabled;
             button.setMessage(glowingEnabledLabel());
-        }).bounds(left + contentWidth - 250, y, 250, FIELD_HEIGHT).build());
+        }).bounds(left + columnWidth + columnGap, y, columnWidth, FIELD_HEIGHT).build());
 
         y += 24;
 
@@ -84,15 +87,17 @@ public class TabNameDimmerConfigScreen extends Screen {
         dimColor = new EditBox(this.font, left, y, 120, FIELD_HEIGHT, Component.translatable("tabnamedimmer.option.dim_color"));
         dimColor.setValue(String.format("#%06X", config.dimColor));
         dimColor.setMaxLength(7);
+        dimColor.setResponder(value -> updateColorValidation());
         addRenderableWidget(dimColor);
 
         int buttonY = this.height - 30;
-        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.save"), button -> saveAndClose())
+        saveButton = addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.save"), button -> saveAndClose())
                 .bounds(this.width / 2 - 155, buttonY, 150, 20)
                 .build());
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.cancel"), button -> this.minecraft.setScreen(parent))
                 .bounds(this.width / 2 + 5, buttonY, 150, 20)
                 .build());
+        updateColorValidation();
     }
 
     @Override
@@ -103,12 +108,21 @@ public class TabNameDimmerConfigScreen extends Screen {
         int contentWidth = Math.min(520, this.width - 40);
         int left = (this.width - contentWidth) / 2;
         int labelY = 98;
-        graphics.text(this.font, Component.translatable("tabnamedimmer.field.allowed_names"), left, labelY, 0xFFD8DEE9);
+        int nameCount = nameList == null ? 0 : nameList.names().size();
+        graphics.text(this.font, Component.translatable("tabnamedimmer.field.allowed_names_count", nameCount), left, labelY, 0xFFD8DEE9);
         if (!importMessage.isBlank()) {
             int labelWidth = this.font.width(Component.translatable("tabnamedimmer.field.allowed_names"));
             graphics.text(this.font, Component.literal(importMessage), left + labelWidth + 10, labelY, 0xFF88C0D0);
         }
         graphics.text(this.font, Component.translatable("tabnamedimmer.option.dim_color"), left, this.height - 72, 0xFFD8DEE9);
+        Integer previewColor = parseColor(dimColor == null ? "" : dimColor.getValue());
+        int swatchColor = previewColor == null ? 0xFF552222 : 0xFF000000 | previewColor;
+        graphics.fill(left + 126, this.height - 60, left + 146, this.height - 42, 0xFFFFFFFF);
+        graphics.fill(left + 128, this.height - 58, left + 144, this.height - 44, swatchColor);
+        graphics.text(this.font, Component.translatable(previewColor == null
+                ? "tabnamedimmer.color.invalid"
+                : "tabnamedimmer.color.preview"), left + 154, this.height - 56,
+                previewColor == null ? 0xFFFF5555 : 0xFFB8C0CC);
 
         super.extractRenderState(graphics, mouseX, mouseY, tickDelta);
     }
@@ -119,8 +133,13 @@ public class TabNameDimmerConfigScreen extends Screen {
     }
 
     private void saveAndClose() {
+        Integer parsedColor = parseColor(dimColor.getValue());
+        if (parsedColor == null) {
+            updateColorValidation();
+            return;
+        }
         config.allowedNames = nameList.names();
-        config.dimColor = parseColor(dimColor.getValue(), config.dimColor);
+        config.dimColor = parsedColor;
         TabNameDimmerConfig.save(config);
         this.minecraft.setScreen(parent);
     }
@@ -130,7 +149,12 @@ public class TabNameDimmerConfigScreen extends Screen {
     }
 
     private Component displayModeLabel() {
-        return Component.translatable("tabnamedimmer.option.mode", config.displayMode.name());
+        String key = switch (config.displayMode) {
+            case ANIMATED_SORT -> "tabnamedimmer.mode.animated_sort";
+            case FILTER -> "tabnamedimmer.mode.filter";
+            case EXTRA_HUD -> "tabnamedimmer.mode.extra_hud";
+        };
+        return Component.translatable("tabnamedimmer.option.mode", Component.translatable(key));
     }
 
     private Component caseSensitiveLabel() {
@@ -145,15 +169,28 @@ public class TabNameDimmerConfigScreen extends Screen {
         return Component.translatable(value ? "tabnamedimmer.state.on" : "tabnamedimmer.state.off");
     }
 
-    private static int parseColor(String value, int fallback) {
+    private void updateColorValidation() {
+        boolean valid = parseColor(dimColor == null ? "" : dimColor.getValue()) != null;
+        if (dimColor != null) {
+            dimColor.setTextColor(valid ? 0xFFE0E0E0 : 0xFFFF5555);
+        }
+        if (saveButton != null) {
+            saveButton.active = valid;
+        }
+    }
+
+    private static Integer parseColor(String value) {
         String normalized = value == null ? "" : value.trim();
         if (normalized.startsWith("#")) {
             normalized = normalized.substring(1);
         }
         try {
+            if (!normalized.matches("[0-9a-fA-F]{6}")) {
+                return null;
+            }
             return Integer.parseInt(normalized, 16) & 0xFFFFFF;
         } catch (NumberFormatException exception) {
-            return fallback;
+            return null;
         }
     }
 
