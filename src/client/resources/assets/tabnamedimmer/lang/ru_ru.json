@@ -5,6 +5,7 @@
   "tabnamedimmer.option.dim_color": "Цвет затемнения",
   "tabnamedimmer.option.glowing": "Контур свечения: %s",
   "tabnamedimmer.field.allowed_names": "Ники, которые не затемнять",
+  "tabnamedimmer.field.allowed_names_count": "Ники без затемнения (%s)",
   "tabnamedimmer.hint.allowed_names": "Steve, Alex, PlayerName",
   "tabnamedimmer.button.import_txt": "Импорт .txt",
   "tabnamedimmer.button.save": "Сохранить",
@@ -16,5 +17,10 @@
   "tabnamedimmer.import.no_dialog": "Выбор файла недоступен",
   "tabnamedimmer.state.on": "Да",
   "tabnamedimmer.state.off": "Нет",
-  "tabnamedimmer.option.mode": "Режим: %s"
+  "tabnamedimmer.option.mode": "Режим: %s",
+  "tabnamedimmer.mode.animated_sort": "Плавная сортировка",
+  "tabnamedimmer.mode.filter": "Только разрешённые",
+  "tabnamedimmer.mode.extra_hud": "Отдельный компактный список",
+  "tabnamedimmer.color.preview": "Предпросмотр",
+  "tabnamedimmer.color.invalid": "Формат: #RRGGBB"
 }

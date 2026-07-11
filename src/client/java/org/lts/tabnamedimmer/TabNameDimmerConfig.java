@@ -44,6 +44,7 @@ public enum DisplayMode {
         } catch (IOException | RuntimeException exception) {
             TabNameDimmerClient.LOGGER.warn("Failed to load {}, using defaults", CONFIG_PATH, exception);
             instance = defaults();
+            lastModified = currentModifiedTime();
         }
 
         return instance;
@@ -136,6 +137,14 @@ public enum DisplayMode {
         return new TabNameDimmerConfig();
     }
 
+    private static long currentModifiedTime() {
+        try {
+            return Files.exists(CONFIG_PATH) ? Files.getLastModifiedTime(CONFIG_PATH).toMillis() : -1L;
+        } catch (IOException ignored) {
+            return -1L;
+        }
+    }
+
     private TabNameDimmerConfig copy() {
         TabNameDimmerConfig copy = new TabNameDimmerConfig();
         copy.enabled = enabled;
@@ -152,8 +161,21 @@ public enum DisplayMode {
         if (config.allowedNames == null) {
             config.allowedNames = new ArrayList<>();
         }
-        config.allowedNames = parseNames(String.join(",", config.allowedNames));
+        List<String> nonNullNames = new ArrayList<>();
+        for (String name : config.allowedNames) {
+            if (name != null) {
+                nonNullNames.add(name);
+            }
+        }
+        config.allowedNames = parseNames(String.join(",", nonNullNames));
         config.dimColor = config.dimColor & 0xFFFFFF;
+        if (config.displayMode == null) {
+            config.displayMode = DisplayMode.ANIMATED_SORT;
+        }
+        if (!Float.isFinite(config.animationSpeed)) {
+            config.animationSpeed = 0.05F;
+        }
+        config.animationSpeed = Math.max(0.001F, Math.min(1.0F, config.animationSpeed));
         config.normalizedNamesCache = null;
         return config;
     }
