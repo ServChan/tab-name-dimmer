@@ -10,6 +10,8 @@
   "tabnamedimmer.button.import_txt": "Import .txt",
   "tabnamedimmer.button.save": "Save",
   "tabnamedimmer.button.cancel": "Cancel",
+  "tabnamedimmer.toast.saved.title": "Tab Name Dimmer",
+  "tabnamedimmer.toast.saved.description": "Settings saved",
   "tabnamedimmer.import.title": "Import names from .txt",
   "tabnamedimmer.import.added": "Added: %s",
   "tabnamedimmer.import.failed": "Import failed",

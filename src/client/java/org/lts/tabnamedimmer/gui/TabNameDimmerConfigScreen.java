@@ -4,8 +4,11 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
+import org.lwjgl.glfw.GLFW;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import org.lts.tabnamedimmer.TabNameDimmerConfig;
 
@@ -22,6 +25,7 @@ import java.util.Locale;
 public class TabNameDimmerConfigScreen extends Screen {
     private static final int FIELD_HEIGHT = 20;
     private static final int ROW_HEIGHT = 26;
+    private static final SystemToast.SystemToastId SAVE_TOAST_ID = new SystemToast.SystemToastId();
 
     private final Screen parent;
     private final TabNameDimmerConfig config;
@@ -76,8 +80,15 @@ public class TabNameDimmerConfigScreen extends Screen {
                 .build());
 
         y += 24;
-        int listBottom = Math.max(y + ROW_HEIGHT, this.height - 82);
-        nameList = addRenderableWidget(new NameList(left, y, contentWidth, listBottom - y));
+        // On a high GUI scale the logical screen can be shorter than the fixed
+        // header and footer. Never let the list grow into the footer: as a
+        // container it would otherwise sit on top of Save/Cancel and consume
+        // their mouse and keyboard events.
+        int listHeight = Math.max(0, this.height - 82 - y);
+        nameList = new NameList(left, y, contentWidth, listHeight);
+        if (listHeight > 0) {
+            addRenderableWidget(nameList);
+        }
         for (String name : config.allowedNames) {
             nameList.addName(name);
         }
@@ -94,7 +105,7 @@ public class TabNameDimmerConfigScreen extends Screen {
         saveButton = addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.save"), button -> saveAndClose())
                 .bounds(this.width / 2 - 155, buttonY, 150, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.cancel"), button -> this.minecraft.setScreen(parent))
+        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.cancel"), button -> closeScreen())
                 .bounds(this.width / 2 + 5, buttonY, 150, 20)
                 .build());
         updateColorValidation();
@@ -129,7 +140,28 @@ public class TabNameDimmerConfigScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(parent);
+        closeScreen();
+    }
+
+    private void closeScreen() {
+        // Returning to Mod Menu can be intercepted by screen-management mods
+        // and reopen this config screen. When invoked in-game, close straight
+        // back to the game instead of relying on that parent screen.
+        this.minecraft.setScreen(this.minecraft.level == null ? parent : null);
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        // Handle Escape before the focused list/edit box can consume it.
+        if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+            onClose();
+            return true;
+        }
+        if (event.key() == GLFW.GLFW_KEY_S && event.hasControlDown()) {
+            saveAndClose();
+            return true;
+        }
+        return super.keyPressed(event);
     }
 
     private void saveAndClose() {
@@ -141,7 +173,13 @@ public class TabNameDimmerConfigScreen extends Screen {
         config.allowedNames = nameList.names();
         config.dimColor = parsedColor;
         TabNameDimmerConfig.save(config);
-        this.minecraft.setScreen(parent);
+        SystemToast.addOrUpdate(
+                this.minecraft.getToastManager(),
+                SAVE_TOAST_ID,
+                Component.translatable("tabnamedimmer.toast.saved.title"),
+                Component.translatable("tabnamedimmer.toast.saved.description")
+        );
+        closeScreen();
     }
 
     private Component enabledLabel() {

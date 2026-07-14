@@ -10,6 +10,8 @@
   "tabnamedimmer.button.import_txt": "Импорт .txt",
   "tabnamedimmer.button.save": "Сохранить",
   "tabnamedimmer.button.cancel": "Отмена",
+  "tabnamedimmer.toast.saved.title": "Затемнение ников в Tab",
+  "tabnamedimmer.toast.saved.description": "Настройки сохранены",
   "tabnamedimmer.import.title": "Импорт ников из .txt",
   "tabnamedimmer.import.added": "Добавлено: %s",
   "tabnamedimmer.import.failed": "Не удалось импортировать",
