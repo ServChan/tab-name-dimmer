@@ -82,7 +82,7 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 - Java `25`
 - Fabric Loader `0.19.3`
 - Mod Menu `18.0.0-alpha.8` опционально
-- Текущая версия мода в проекте: `1.0.0`
+- Текущая версия мода в проекте: `1.0.2`
 
 ### Сборка
 
@@ -182,7 +182,7 @@ Important:
 - Java `25`
 - Fabric Loader `0.19.3`
 - Mod Menu `18.0.0-alpha.8` optional
-- Current project mod version: `1.0.0`
+- Current project mod version: `1.0.2`
 
 ### Build
 
@@ -201,3 +201,11 @@ gradlew.bat clean build
 
 Output:
 - `build/libs/*.jar`
+
+### Persistence and verification
+
+Settings are written to a sibling temporary file and atomically replace the main JSON where supported. A failed save keeps the screen open and reports the failure instead of showing the success toast. When the mod is disabled, the extra HUD, filtering, sorting, and glowing outlines are inactive.
+
+The project was re-audited and compiled with `clean build --warning-mode all` on 2026-07-17. Tab rendering with BetterTab and a populated live server list still requires an in-game compatibility pass.
+
+The optional BetterTab compatibility mixin is now loaded only when Fabric reports that `bettertab` is installed, avoiding the previous missing-target warning in profiles without BetterTab.

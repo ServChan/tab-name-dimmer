@@ -172,7 +172,15 @@ public class TabNameDimmerConfigScreen extends Screen {
         }
         config.allowedNames = nameList.names();
         config.dimColor = parsedColor;
-        TabNameDimmerConfig.save(config);
+        if (!TabNameDimmerConfig.save(config)) {
+            SystemToast.addOrUpdate(
+                    this.minecraft.getToastManager(),
+                    SAVE_TOAST_ID,
+                    Component.translatable("tabnamedimmer.toast.saved.title"),
+                    Component.translatable("tabnamedimmer.toast.save_failed")
+            );
+            return;
+        }
         SystemToast.addOrUpdate(
                 this.minecraft.getToastManager(),
                 SAVE_TOAST_ID,
