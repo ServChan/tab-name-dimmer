@@ -36,6 +36,7 @@ public class PlayerTabOverlayMixin {
     private void tabnamedimmer$renderExtraHud(net.minecraft.client.gui.GuiGraphicsExtractor graphics, int width, net.minecraft.world.scores.Scoreboard scoreboard, net.minecraft.world.scores.Objective objective, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
         if (!TabNameDimmerClient.isShiftDown()) return;
         TabNameDimmerConfig config = TabNameDimmerConfig.loadIfChanged();
+        if (!config.enabled) return;
         if (config.displayMode != TabNameDimmerConfig.DisplayMode.EXTRA_HUD) return;
 
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
@@ -47,18 +48,24 @@ public class PlayerTabOverlayMixin {
 
         if (whitelisted.isEmpty()) return;
 
+        int padding = 5;
+        int guiHeight = mc.getWindow().getGuiScaledHeight();
+        int maxRows = Math.max(1, (guiHeight - 50 - padding * 2) / 9);
+        if (whitelisted.size() > maxRows) {
+            whitelisted = whitelisted.subList(0, maxRows);
+        }
+
         net.minecraft.client.gui.Font font = mc.font;
         int maxNameWidth = 0;
         for (PlayerInfo p : whitelisted) {
             maxNameWidth = Math.max(maxNameWidth, font.width(p.getProfile().name()));
         }
 
-        int padding = 5;
         int boxWidth = maxNameWidth + padding * 2;
         int boxHeight = whitelisted.size() * 9 + padding * 2;
         
         int x = width / 2 - boxWidth / 2;
-        int y = Math.max(10, mc.getWindow().getGuiScaledHeight() - boxHeight - 40); // 40 pixels from bottom to avoid hotbar
+        int y = Math.max(10, guiHeight - boxHeight - 40); // 40 pixels from bottom to avoid hotbar
 
         // Draw background
         graphics.fill(x, y, x + boxWidth, y + boxHeight, 0x80000000);

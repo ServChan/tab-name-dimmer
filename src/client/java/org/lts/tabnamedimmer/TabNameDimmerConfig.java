@@ -9,6 +9,8 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -72,18 +74,31 @@ public enum DisplayMode {
         return instance.copy();
     }
 
-    public static void save(TabNameDimmerConfig config) {
+    public static boolean save(TabNameDimmerConfig config) {
         TabNameDimmerConfig sanitized = sanitize(config);
-
+        Path temporary = CONFIG_PATH.resolveSibling(CONFIG_PATH.getFileName() + ".tmp");
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
-            try (Writer writer = Files.newBufferedWriter(CONFIG_PATH)) {
+            try (Writer writer = Files.newBufferedWriter(temporary)) {
                 GSON.toJson(sanitized, writer);
+            }
+            try {
+                Files.move(temporary, CONFIG_PATH, StandardCopyOption.REPLACE_EXISTING,
+                        StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException ignored) {
+                Files.move(temporary, CONFIG_PATH, StandardCopyOption.REPLACE_EXISTING);
             }
             instance = sanitized;
             lastModified = Files.getLastModifiedTime(CONFIG_PATH).toMillis();
+            return true;
         } catch (IOException exception) {
             TabNameDimmerClient.LOGGER.warn("Failed to save {}", CONFIG_PATH, exception);
+            try {
+                Files.deleteIfExists(temporary);
+            } catch (IOException cleanupException) {
+                TabNameDimmerClient.LOGGER.debug("Failed to clean temporary config {}", temporary, cleanupException);
+            }
+            return false;
         }
     }
 
@@ -122,14 +137,8 @@ public enum DisplayMode {
         if (Files.exists(CONFIG_PATH)) {
             return;
         }
-
-        try {
-            Files.createDirectories(CONFIG_PATH.getParent());
-            try (Writer writer = Files.newBufferedWriter(CONFIG_PATH)) {
-                GSON.toJson(defaults(), writer);
-            }
-        } catch (IOException exception) {
-            TabNameDimmerClient.LOGGER.warn("Failed to create {}", CONFIG_PATH, exception);
+        if (!save(defaults())) {
+            TabNameDimmerClient.LOGGER.warn("Failed to create {}", CONFIG_PATH);
         }
     }
 
