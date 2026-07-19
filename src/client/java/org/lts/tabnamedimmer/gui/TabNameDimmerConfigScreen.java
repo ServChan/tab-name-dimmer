@@ -5,8 +5,10 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.gui.components.toasts.ToastManager;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
@@ -33,6 +35,7 @@ public class TabNameDimmerConfigScreen extends Screen {
     private Button enabledButton;
     private Button caseSensitiveButton;
     private Button saveButton;
+    private Button cancelButton;
     private EditBox dimColor;
     private NameList nameList;
     private String importMessage = "";
@@ -105,7 +108,7 @@ public class TabNameDimmerConfigScreen extends Screen {
         saveButton = addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.save"), button -> saveAndClose())
                 .bounds(this.width / 2 - 155, buttonY, 150, 20)
                 .build());
-        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.cancel"), button -> closeScreen())
+        cancelButton = addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.cancel"), button -> closeScreen())
                 .bounds(this.width / 2 + 5, buttonY, 150, 20)
                 .build());
         updateColorValidation();
@@ -144,10 +147,37 @@ public class TabNameDimmerConfigScreen extends Screen {
     }
 
     private void closeScreen() {
-        // Returning to Mod Menu can be intercepted by screen-management mods
-        // and reopen this config screen. When invoked in-game, close straight
-        // back to the game instead of relying on that parent screen.
-        this.minecraft.setScreen(this.minecraft.level == null ? parent : null);
+        // Passing null is safe both in-game and in the main menu: Minecraft
+        // returns to the HUD or creates a fresh title screen respectively.
+        // This avoids reusing a Mod Menu parent that may retain stale focus.
+        try {
+            // Since 26.2 screen ownership lives in Gui; in 26.1.2 it still
+            // lives in Minecraft. Reflection keeps one binary compatible with
+            // both layouts without loading a missing method reference.
+            try {
+                this.minecraft.gui.getClass().getMethod("setScreen", Screen.class)
+                        .invoke(this.minecraft.gui, new Object[]{null});
+            } catch (NoSuchMethodException ignored) {
+                this.minecraft.getClass().getMethod("setScreen", Screen.class)
+                        .invoke(this.minecraft, new Object[]{null});
+            }
+        } catch (ReflectiveOperationException exception) {
+            throw new IllegalStateException("Unable to close the config screen", exception);
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        // The name list contains focused EditBoxes and is registered before the
+        // footer. Give the two exit actions first chance to handle the click so
+        // a list implementation or input mod cannot consume it first.
+        if (saveButton != null && saveButton.mouseClicked(event, doubleClick)) {
+            return true;
+        }
+        if (cancelButton != null && cancelButton.mouseClicked(event, doubleClick)) {
+            return true;
+        }
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
@@ -173,21 +203,32 @@ public class TabNameDimmerConfigScreen extends Screen {
         config.allowedNames = nameList.names();
         config.dimColor = parsedColor;
         if (!TabNameDimmerConfig.save(config)) {
-            SystemToast.addOrUpdate(
-                    this.minecraft.getToastManager(),
-                    SAVE_TOAST_ID,
-                    Component.translatable("tabnamedimmer.toast.saved.title"),
-                    Component.translatable("tabnamedimmer.toast.save_failed")
-            );
+            showSaveToast("tabnamedimmer.toast.save_failed");
             return;
         }
-        SystemToast.addOrUpdate(
-                this.minecraft.getToastManager(),
-                SAVE_TOAST_ID,
-                Component.translatable("tabnamedimmer.toast.saved.title"),
-                Component.translatable("tabnamedimmer.toast.saved.description")
-        );
+        showSaveToast("tabnamedimmer.toast.saved.description");
         closeScreen();
+    }
+
+    private void showSaveToast(String descriptionKey) {
+        try {
+            ToastManager toastManager;
+            try {
+                toastManager = (ToastManager) this.minecraft.gui.getClass().getMethod("toastManager")
+                        .invoke(this.minecraft.gui);
+            } catch (NoSuchMethodException ignored) {
+                toastManager = (ToastManager) this.minecraft.getClass().getMethod("getToastManager")
+                        .invoke(this.minecraft);
+            }
+            SystemToast.addOrUpdate(
+                    toastManager,
+                    SAVE_TOAST_ID,
+                    Component.translatable("tabnamedimmer.toast.saved.title"),
+                    Component.translatable(descriptionKey)
+            );
+        } catch (ReflectiveOperationException exception) {
+            org.lts.tabnamedimmer.TabNameDimmerClient.LOGGER.warn("Unable to show the save notification", exception);
+        }
     }
 
     private Component enabledLabel() {
