@@ -64,8 +64,8 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 ### Установка
 
 Для работы нужны:
-- [Fabric Loader](https://fabricmc.net/use/installer/) `0.19.0+`
-- Minecraft `26.1.2+`
+- [Fabric Loader](https://fabricmc.net/use/installer/) `0.19.3+`
+- Minecraft `26.1.2`-`26.2` (one JAR)
 - Java `25+`
 
 Рекомендуется:
@@ -78,11 +78,11 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 
 ### Совместимость
 
-- Minecraft `26.1.2`
+- Minecraft `26.1.2`-`26.2`
 - Java `25`
 - Fabric Loader `0.19.3`
 - Mod Menu `18.0.0-alpha.8` опционально
-- Текущая версия мода в проекте: `1.0.2`
+- Текущая версия мода в проекте: `1.0.3`
 
 ### Сборка
 
@@ -164,8 +164,8 @@ Name list format:
 ### Installation
 
 Required:
-- [Fabric Loader](https://fabricmc.net/use/installer/) `0.19.0+`
-- Minecraft `26.1.2+`
+- [Fabric Loader](https://fabricmc.net/use/installer/) `0.19.3+`
+- Minecraft `26.1.2`-`26.2` (one JAR)
 - Java `25+`
 
 Recommended:
@@ -178,11 +178,11 @@ Important:
 
 ### Compatibility
 
-- Minecraft `26.1.2`
+- Minecraft `26.1.2`-`26.2`
 - Java `25`
 - Fabric Loader `0.19.3`
 - Mod Menu `18.0.0-alpha.8` optional
-- Current project mod version: `1.0.2`
+- Current project mod version: `1.0.3`
 
 ### Build
 
@@ -206,6 +206,6 @@ Output:
 
 Settings are written to a sibling temporary file and atomically replace the main JSON where supported. A failed save keeps the screen open and reports the failure instead of showing the success toast. When the mod is disabled, the extra HUD, filtering, sorting, and glowing outlines are inactive.
 
-The project was re-audited and compiled with `clean build --warning-mode all` on 2026-07-17. Tab rendering with BetterTab and a populated live server list still requires an in-game compatibility pass.
+The same sources were compiled against Minecraft 26.1.2 and 26.2 on 2026-07-22. Tab rendering with BetterTab and a populated live server list still requires an in-game compatibility pass.
 
 The optional BetterTab compatibility mixin is now loaded only when Fabric reports that `bettertab` is installed, avoiding the previous missing-target warning in profiles without BetterTab.
