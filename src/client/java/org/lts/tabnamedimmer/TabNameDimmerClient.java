@@ -1,6 +1,7 @@
 package org.lts.tabnamedimmer;
 
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
@@ -13,6 +14,10 @@ public class TabNameDimmerClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         TabNameDimmerConfig.load();
+        // Entity IDs are reassigned on every new connection; clear stale entries
+        // so that wrong players are never made transparent after a reconnect.
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
+                PlayerTransparencyTracker.INSTANCE.clear());
     }
 
     public static boolean isShiftDown() {

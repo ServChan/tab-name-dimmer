@@ -7,6 +7,8 @@ version = project.mod_version
 group = project.maven_group
 def modVersion = project.version.toString()
 def licenseArchiveName = project.name
+def minecraftVersionKey = project.minecraft_version.toString().replace('.', '_')
+def fabricNetworkingApiVersion = project.property("fabric_networking_api_version_${minecraftVersionKey}")
 def localModMenu = file(project.modmenu_jar)
 
 base {
@@ -30,9 +32,24 @@ loom {
     }
 }
 
+sourceSets {
+    client {
+        java {
+            if (project.minecraft_version == "26.2") {
+                srcDir "src/compat_26_2/java"
+            } else {
+                srcDir "src/compat_26_1/java"
+            }
+        }
+    }
+}
+
+
+
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-networking-api-v1:${fabricNetworkingApiVersion}"
     if (localModMenu.isFile()) {
         compileOnly files(localModMenu)
     } else {
