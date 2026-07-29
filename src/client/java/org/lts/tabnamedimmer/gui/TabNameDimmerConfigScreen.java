@@ -78,17 +78,19 @@ public class TabNameDimmerConfigScreen extends Screen {
 
         y += 24;
 
+        addRenderableWidget(Button.builder(playerTransparencyLabel(), button -> {
+            config.playerTransparencyEnabled = !config.playerTransparencyEnabled;
+            button.setMessage(playerTransparencyLabel());
+        }).bounds(left, y, columnWidth, FIELD_HEIGHT).build());
+
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.import_txt"), button -> importNamesFromTxt())
-                .bounds(left + contentWidth - 130, y, 130, FIELD_HEIGHT)
+                .bounds(left + columnWidth + columnGap, y, columnWidth, FIELD_HEIGHT)
                 .build());
 
         y += 24;
-        // On a high GUI scale the logical screen can be shorter than the fixed
-        // header and footer. Never let the list grow into the footer: as a
-        // container it would otherwise sit on top of Save/Cancel and consume
-        // their mouse and keyboard events.
-        int listHeight = Math.max(0, this.height - 82 - y);
-        nameList = new NameList(left, y, contentWidth, listHeight);
+        int listTop = y + 14;
+        int listHeight = Math.max(0, this.height - 82 - listTop);
+        nameList = new NameList(left, listTop, contentWidth, listHeight);
         if (listHeight > 0) {
             addRenderableWidget(nameList);
         }
@@ -121,7 +123,7 @@ public class TabNameDimmerConfigScreen extends Screen {
 
         int contentWidth = Math.min(520, this.width - 40);
         int left = (this.width - contentWidth) / 2;
-        int labelY = 98;
+        int labelY = 118;
         int nameCount = nameList == null ? 0 : nameList.names().size();
         graphics.text(this.font, Component.translatable("tabnamedimmer.field.allowed_names_count", nameCount), left, labelY, 0xFFD8DEE9);
         if (!importMessage.isBlank()) {
@@ -250,6 +252,10 @@ public class TabNameDimmerConfigScreen extends Screen {
 
     private Component glowingEnabledLabel() {
         return Component.translatable("tabnamedimmer.option.glowing", onOff(config.glowingEnabled));
+    }
+
+    private Component playerTransparencyLabel() {
+        return Component.translatable("tabnamedimmer.option.player_transparency", onOff(config.playerTransparencyEnabled));
     }
 
     private static Component onOff(boolean value) {

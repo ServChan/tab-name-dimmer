@@ -4,6 +4,7 @@
   "tabnamedimmer.option.case_sensitive": "Case sensitive: %s",
   "tabnamedimmer.option.dim_color": "Dim color",
   "tabnamedimmer.option.glowing": "Glowing Outline: %s",
+  "tabnamedimmer.option.player_transparency": "Player Transparency: %s",
   "tabnamedimmer.field.allowed_names": "Names that stay bright",
   "tabnamedimmer.field.allowed_names_count": "Names that stay bright (%s)",
   "tabnamedimmer.hint.allowed_names": "Steve, Alex, PlayerName",

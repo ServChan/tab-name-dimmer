@@ -8,6 +8,8 @@
     "PlayerTabOverlayMixin",
     "PlayerTabOverlaySortingMixin",
     "EntityGlowingMixin",
+    "AvatarTransparencyMixin",
+    "LivingEntityTransparencyMixin",
     "compat.BetterTabToolsMixin"
   ],
   "injectors": {

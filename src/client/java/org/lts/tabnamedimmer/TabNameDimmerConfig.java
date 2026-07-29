@@ -31,6 +31,8 @@ public enum DisplayMode {
     public boolean enabled = true;
     public boolean caseSensitive = false;
     public boolean glowingEnabled = false;
+    public boolean playerTransparencyEnabled = false;
+    public float dimOpacity = 0.3f;
     public int dimColor = 0x555555;
     public DisplayMode displayMode = DisplayMode.ANIMATED_SORT;
     public float animationSpeed = 0.05f;
@@ -159,6 +161,8 @@ public enum DisplayMode {
         copy.enabled = enabled;
         copy.caseSensitive = caseSensitive;
         copy.glowingEnabled = glowingEnabled;
+        copy.playerTransparencyEnabled = playerTransparencyEnabled;
+        copy.dimOpacity = dimOpacity;
         copy.dimColor = dimColor;
         copy.displayMode = displayMode;
         copy.animationSpeed = animationSpeed;
@@ -185,6 +189,10 @@ public enum DisplayMode {
             config.animationSpeed = 0.05F;
         }
         config.animationSpeed = Math.max(0.001F, Math.min(1.0F, config.animationSpeed));
+        if (!Float.isFinite(config.dimOpacity)) {
+            config.dimOpacity = 0.3F;
+        }
+        config.dimOpacity = Math.max(0.05F, Math.min(1.0F, config.dimOpacity));
         config.normalizedNamesCache = null;
         return config;
     }
