@@ -1,5 +1,11 @@
 # Tab Name Dimmer
 
+![Minecraft](https://img.shields.io/badge/Minecraft-26.1.2--26.2-62B47A)
+![Fabric](https://img.shields.io/badge/Fabric-client-DBD0B4)
+![Java](https://img.shields.io/badge/Java-25-E76F00)
+![Version](https://img.shields.io/badge/version-1.0.4-4C8BF5)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
 Client-side Fabric mod for Minecraft that makes the Tab player list easier to scan on large servers by dimming, filtering, sorting, or separately showing selected player names while Shift is held.
 
 ## Русский

@@ -20,6 +20,7 @@ import java.util.Set;
 public class TabNameDimmerConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("tab-name-dimmer.json");
+    private static final Path BACKUP_PATH = CONFIG_PATH.resolveSibling("tab-name-dimmer.json.bak");
 
     private static TabNameDimmerConfig instance = defaults();
     private static long lastModified = -1L;
@@ -47,7 +48,7 @@ public enum DisplayMode {
             lastModified = Files.getLastModifiedTime(CONFIG_PATH).toMillis();
         } catch (IOException | RuntimeException exception) {
             TabNameDimmerClient.LOGGER.warn("Failed to load {}, using defaults", CONFIG_PATH, exception);
-            instance = defaults();
+            instance = loadBackup();
             lastModified = currentModifiedTime();
         }
 
@@ -83,6 +84,9 @@ public enum DisplayMode {
             Files.createDirectories(CONFIG_PATH.getParent());
             try (Writer writer = Files.newBufferedWriter(temporary)) {
                 GSON.toJson(sanitized, writer);
+            }
+            if (Files.isRegularFile(CONFIG_PATH)) {
+                Files.copy(CONFIG_PATH, BACKUP_PATH, StandardCopyOption.REPLACE_EXISTING);
             }
             try {
                 Files.move(temporary, CONFIG_PATH, StandardCopyOption.REPLACE_EXISTING,
@@ -146,6 +150,29 @@ public enum DisplayMode {
 
     private static TabNameDimmerConfig defaults() {
         return new TabNameDimmerConfig();
+    }
+
+    private static TabNameDimmerConfig loadBackup() {
+        if (!Files.isRegularFile(BACKUP_PATH)) {
+            return defaults();
+        }
+        try (Reader reader = Files.newBufferedReader(BACKUP_PATH)) {
+            TabNameDimmerConfig recovered = sanitize(GSON.fromJson(reader, TabNameDimmerConfig.class));
+            TabNameDimmerClient.LOGGER.warn("Recovered configuration from {}", BACKUP_PATH);
+            try {
+                if (Files.isRegularFile(CONFIG_PATH)) {
+                    Files.move(CONFIG_PATH, CONFIG_PATH.resolveSibling("tab-name-dimmer.json.corrupt"),
+                            StandardCopyOption.REPLACE_EXISTING);
+                }
+                Files.copy(BACKUP_PATH, CONFIG_PATH, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException exception) {
+                TabNameDimmerClient.LOGGER.warn("Failed to restore primary configuration", exception);
+            }
+            return recovered;
+        } catch (IOException | RuntimeException exception) {
+            TabNameDimmerClient.LOGGER.warn("Failed to recover {}", BACKUP_PATH, exception);
+            return defaults();
+        }
     }
 
     private static long currentModifiedTime() {

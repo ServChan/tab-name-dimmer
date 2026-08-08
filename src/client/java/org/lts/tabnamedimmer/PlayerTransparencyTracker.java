@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * them during {@code getModelTint}.
  */
 public final class PlayerTransparencyTracker {
+    private static final int MAX_TRACKED_ENTITIES = 512;
     public static final PlayerTransparencyTracker INSTANCE = new PlayerTransparencyTracker();
 
     private final Map<Integer, String> entityIdToName = new ConcurrentHashMap<>();
@@ -21,6 +22,9 @@ public final class PlayerTransparencyTracker {
 
     /** Called from AvatarRenderer.extractRenderState – records the player name for this entity. */
     public void put(int entityId, String playerName) {
+        if (!entityIdToName.containsKey(entityId) && entityIdToName.size() >= MAX_TRACKED_ENTITIES) {
+            entityIdToName.clear();
+        }
         entityIdToName.put(entityId, playerName);
     }
 
