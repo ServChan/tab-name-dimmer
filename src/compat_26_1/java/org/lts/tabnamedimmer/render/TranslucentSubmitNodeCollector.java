@@ -24,9 +24,10 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
+import org.lts.tabnamedimmer.mixin.accessor.RenderSetupAccessor;
+import org.lts.tabnamedimmer.mixin.accessor.RenderTypeAccessor;
+import org.lts.tabnamedimmer.mixin.accessor.TextureBindingAccessor;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.IdentityHashMap;
 import java.util.Locale;
@@ -89,27 +90,17 @@ public class TranslucentSubmitNodeCollector implements SubmitNodeCollector {
 
     private static Identifier extractTexture(RenderType type) {
         if (type == null) return null;
-        try {
-            Field stateField = RenderType.class.getDeclaredField("state");
-            stateField.setAccessible(true);
-            Object setup = stateField.get(type);
-
-            Field texturesField = setup.getClass().getDeclaredField("textures");
-            texturesField.setAccessible(true);
-            Map<?, ?> textures = (Map<?, ?>) texturesField.get(setup);
-
-            if (textures != null && !textures.isEmpty()) {
-                Object binding = textures.get("Sampler0");
-                if (binding == null) {
-                    binding = textures.values().iterator().next();
-                }
-                Method locationMethod = binding.getClass().getMethod("location");
-                locationMethod.setAccessible(true);
-                return (Identifier) locationMethod.invoke(binding);
-            }
-        } catch (Throwable ignored) {
+        Map<String, Object> textures = ((RenderSetupAccessor) (Object)
+                ((RenderTypeAccessor) (Object) type).tabNameDimmer$getState()).tabNameDimmer$getTextures();
+        if (textures == null || textures.isEmpty()) {
+            return null;
         }
-        return null;
+        Object binding = textures.get("Sampler0");
+        if (binding == null) {
+            binding = textures.values().iterator().next();
+        }
+        return binding instanceof TextureBindingAccessor accessor
+                ? accessor.tabNameDimmer$getLocation() : null;
     }
 
     @Override

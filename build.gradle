@@ -12,6 +12,7 @@ def licenseArchiveName = project.name
 def minecraftVersionKey = project.minecraft_version.toString().replace('.', '_')
 def fabricNetworkingApiVersion = project.property("fabric_networking_api_version_${minecraftVersionKey}")
 def fabricLifecycleEventsVersion = project.property("fabric_lifecycle_events_version_${minecraftVersionKey}")
+def fabricKeyMappingApiVersion = project.property("fabric_key_mapping_api_version_${minecraftVersionKey}")
 def localModMenu = file(project.modmenu_jar)
 
 base {
@@ -45,6 +46,10 @@ sourceSets {
             }
         }
     }
+    test {
+        compileClasspath += sourceSets.client.output
+        runtimeClasspath += sourceSets.client.output
+    }
 }
 
 
@@ -54,6 +59,7 @@ dependencies {
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-networking-api-v1:${fabricNetworkingApiVersion}"
     implementation "net.fabricmc.fabric-api:fabric-lifecycle-events-v1:${fabricLifecycleEventsVersion}"
+    implementation "net.fabricmc.fabric-api:fabric-key-mapping-api-v1:${fabricKeyMappingApiVersion}"
     if (localModMenu.isFile()) {
         compileOnly files(localModMenu)
     } else {
@@ -61,6 +67,8 @@ dependencies {
             transitive = false
         }
     }
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.11.4"
 }
 
 tasks.withType(ProcessResources).configureEach {
@@ -107,6 +115,69 @@ tasks.register("verifyLocalization") {
 
 tasks.named("check") {
     dependsOn tasks.named("verifyLocalization")
+    dependsOn "verifyVersionSync"
+    dependsOn "verifyTranslationUsage"
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+def metadataFile = file("src/client/resources/fabric.mod.json")
+def readmeFile = file("README.md")
+
+tasks.register("verifyVersionSync") {
+    group = "verification"
+    description = "Checks that Gradle, metadata and README use the same mod version."
+    inputs.files("gradle.properties", metadataFile, readmeFile)
+    doLast {
+        def expected = modVersion
+        def metadata = metadataFile.getText("UTF-8")
+        def readme = readmeFile.getText("UTF-8")
+        if (!metadata.contains('\"version\": \"${version}\"')) {
+            throw new GradleException("fabric.mod.json must use the Gradle version placeholder")
+        }
+        if (!readme.contains("version-${expected}-")
+                || !readme.contains("Текущая версия мода в проекте: `${expected}`")
+                || !readme.contains("Current project mod version: `${expected}`")) {
+            throw new GradleException("README.md is not synchronized with mod_version=${expected}")
+        }
+    }
+}
+
+def clientJavaFiles = fileTree("src/client/java") { include "**/*.java" }
+def englishLanguageFile = file("src/client/resources/assets/tabnamedimmer/lang/en_us.json")
+
+tasks.register("verifyTranslationUsage") {
+    group = "verification"
+    description = "Checks that statically referenced UI translation keys exist."
+    inputs.files(clientJavaFiles, languageFiles, englishLanguageFile)
+    doLast {
+        def translations = new JsonSlurper().parse(englishLanguageFile) as Map
+        def used = [] as Set
+        def pattern = ~/(?:Component\.translatable|new KeyMapping)\(\s*"([^"]+)"/
+        clientJavaFiles.files.each { source ->
+            def matcher = source.getText("UTF-8") =~ pattern
+            matcher.each { match ->
+                def key = match[1]
+                if (key.startsWith("tabnamedimmer.") && !key.endsWith(".")) {
+                    used.add(key)
+                }
+            }
+        }
+        used.addAll([
+                "tabnamedimmer.state.on", "tabnamedimmer.state.off",
+                "tabnamedimmer.activation.hold_shift", "tabnamedimmer.activation.hold_key", "tabnamedimmer.activation.toggle_key",
+                "tabnamedimmer.mode.animated_sort", "tabnamedimmer.mode.filter", "tabnamedimmer.mode.extra_hud",
+                "tabnamedimmer.sort.original", "tabnamedimmer.sort.name", "tabnamedimmer.sort.ping",
+                "tabnamedimmer.hud_anchor.top_left", "tabnamedimmer.hud_anchor.top_right",
+                "tabnamedimmer.hud_anchor.bottom_left", "tabnamedimmer.hud_anchor.bottom_center", "tabnamedimmer.hud_anchor.bottom_right"
+        ])
+        def missing = used.findAll { !translations.containsKey(it) }
+        if (!missing.isEmpty()) {
+            throw new GradleException("Missing UI translation keys: ${missing.sort()}")
+        }
+    }
 }
 
 java {

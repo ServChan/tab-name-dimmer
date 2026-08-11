@@ -10,6 +10,9 @@
     "EntityGlowingMixin",
     "AvatarTransparencyMixin",
     "LivingEntityTransparencyMixin",
+    "accessor.RenderTypeAccessor",
+    "accessor.RenderSetupAccessor",
+    "accessor.TextureBindingAccessor",
     "compat.BetterTabToolsMixin"
   ],
   "injectors": {

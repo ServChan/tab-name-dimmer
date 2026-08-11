@@ -26,17 +26,22 @@ public abstract class LivingEntityTransparencyMixin {
             argsOnly = true
     )
     private SubmitNodeCollector tabNameDimmer$wrapCollector(SubmitNodeCollector collector, LivingEntityRenderState state) {
-        if (!TabNameDimmerClient.isShiftDown() || !TabNameDimmerClient.isTabListOpen()) {
+        if (!TabNameDimmerClient.isActivationActive() || !TabNameDimmerClient.isTabListOpen()) {
             return collector;
         }
         TabNameDimmerConfig config = TabNameDimmerConfig.current();
-        if (!config.enabled || !config.playerTransparencyEnabled) {
+        if (!config.enabled) {
             return collector;
         }
 
         if (state instanceof AvatarRenderState avatarState) {
             String playerName = PlayerTransparencyTracker.INSTANCE.getName(avatarState.id);
-            if (playerName != null && config.shouldDim(playerName)) {
+            TabNameDimmerConfig.Match match = playerName == null ? null
+                    : config.findMatch(playerName, org.lts.tabnamedimmer.ServerScopeTracker.currentScope());
+            boolean transparent = match == null
+                    ? config.playerTransparencyEnabled
+                    : match.group().transparencyEnabled;
+            if (playerName != null && transparent) {
                 return new TranslucentSubmitNodeCollector(collector, config.dimOpacity);
             }
         }

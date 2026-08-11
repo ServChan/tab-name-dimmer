@@ -3,9 +3,8 @@ package org.lts.tabnamedimmer.mixin.compat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import org.lts.tabnamedimmer.PlayerNameStyler;
 import org.lts.tabnamedimmer.TabNameDimmerClient;
-import org.lts.tabnamedimmer.TabNameDimmerConfig;
 import org.lts.tabnamedimmer.TabStateTracker;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
@@ -33,14 +32,7 @@ public class BetterTabToolsMixin {
 
     @Inject(method = "getPlayerName", at = @At("RETURN"), cancellable = true)
     private static void tabNameDimmer$onGetPlayerName(PlayerInfo entry, CallbackInfoReturnable<Component> cir) {
-        if (!TabNameDimmerClient.isShiftDown()) return;
-        TabNameDimmerConfig config = TabNameDimmerConfig.current();
-        if (!config.shouldDim(entry.getProfile().name())) return;
-
-        MutableComponent dimmedName = Component.empty();
-        for (Component segment : cir.getReturnValue().toFlatList()) {
-            dimmedName.append(segment.copy().withStyle(style -> style.withColor(config.dimColor)));
-        }
-        cir.setReturnValue(dimmedName);
+        if (!TabNameDimmerClient.isActivationActive()) return;
+        cir.setReturnValue(PlayerNameStyler.style(cir.getReturnValue(), entry.getProfile().name()));
     }
 }

@@ -3,10 +3,12 @@
 ![Minecraft](https://img.shields.io/badge/Minecraft-26.1.2--26.2-62B47A)
 ![Fabric](https://img.shields.io/badge/Fabric-client-DBD0B4)
 ![Java](https://img.shields.io/badge/Java-25-E76F00)
-![Version](https://img.shields.io/badge/version-1.0.4-4C8BF5)
+![Version](https://img.shields.io/badge/version-1.1.0-4C8BF5)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 Client-side Fabric mod for Minecraft that makes the Tab player list easier to scan on large servers by dimming, filtering, sorting, or separately showing selected player names while Shift is held.
+
+Version 1.1.0 adds named player groups, per-server profiles, online-player management, configurable hold/toggle activation, tracked-player notifications, portable JSON profiles, within-group sorting, and a configurable multi-column HUD with avatars and ping.
 
 ## Русский
 
@@ -38,6 +40,11 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 - чувствительность или нечувствительность к регистру;
 - импорт ников из `.txt`;
 - интеграцию с Mod Menu для настройки через интерфейс.
+- именованные группы с собственным цветом, приоритетом, контуром и прозрачностью;
+- отдельные профили серверов с глобальным fallback;
+- быстрое добавление и удаление игроков из текущего онлайна;
+- уведомления о входе и выходе отслеживаемых игроков;
+- экспорт и импорт полного JSON-профиля.
 
 ### Режимы отображения
 
@@ -47,6 +54,8 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 - `EXTRA_HUD`: при удержании `Shift` выбранные игроки дополнительно показываются в отдельном небольшом HUD-блоке.
 
 Во всех режимах ники, которых нет в списке исключений, могут затемняться выбранным цветом.
+
+Внутри групп доступна сортировка по исходному порядку сервера, нику или пингу. В режиме `EXTRA_HUD` настраиваются позиция, число колонок и строк, аватары и отображение пинга.
 
 ### Настройки
 
@@ -63,9 +72,14 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 - `Sorting speed`: задает скорость плавной сортировки;
 - `Names that stay bright`: список ников, которые не нужно затемнять;
 - `Import .txt`: импортирует ники из текстового файла.
+- `Activation`: выбирает удержание любого Shift, удержание назначенной клавиши или toggle;
+- `Manage groups and server profiles`: открывает редактор групп, серверных профилей и игроков онлайн;
+- `Compact HUD settings`: задаёт позицию, колонки, строки, аватары и пинг.
 
 Файл конфигурации:
 - `config/tab-name-dimmer.json`
+
+Конфигурация версии 1 автоматически мигрирует старый `allowedNames` в глобальную группу `Default`. Основной JSON, `.bak` и `.corrupt` остаются локальными. Профили экспортируются отдельно в переносимый JSON через экран участников группы.
 
 Формат списка ников:
 - ники можно вводить отдельными строками;
@@ -95,7 +109,7 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 - Java `25`
 - Fabric Loader `0.19.3`
 - Mod Menu `18.0.0-alpha.8` опционально
-- Текущая версия мода в проекте: `1.0.4`
+- Текущая версия мода в проекте: `1.1.0`
 
 ### Сборка
 
@@ -145,6 +159,11 @@ Tab Name Dimmer extends the standard Minecraft player list with:
 - optional case-sensitive matching;
 - `.txt` name import;
 - Mod Menu integration for in-game configuration.
+- named groups with individual colors, priorities, outlines, and transparency;
+- per-server profiles with a global fallback;
+- quick add/remove actions for currently online players;
+- tracked-player join/leave notifications;
+- full portable JSON profile import and export.
 
 ### Display Modes
 
@@ -154,6 +173,8 @@ The mod supports three modes:
 - `EXTRA_HUD`: allowlisted players are additionally shown in a small separate HUD block while `Shift` is held.
 
 In all modes, names outside the allowlist can be dimmed with the configured color.
+
+Players inside groups can be sorted by server order, name, or ping. `EXTRA_HUD` supports configurable anchoring, columns, row limits, avatars, and ping.
 
 ### Settings
 
@@ -170,9 +191,14 @@ Available settings:
 - `Sorting speed`: controls animated sorting speed;
 - `Names that stay bright`: names that should not be dimmed;
 - `Import .txt`: imports names from a text file.
+- `Activation`: selects either-Shift hold, custom-key hold, or custom-key toggle;
+- `Manage groups and server profiles`: edits groups, per-server overrides, and online players;
+- `Compact HUD settings`: configures position, columns, rows, avatars, and ping.
 
 Config file:
 - `config/tab-name-dimmer.json`
+
+Schema v1 is migrated automatically: the old `allowedNames` list becomes the global `Default` group. The primary JSON, `.bak`, and `.corrupt` files remain local. Complete profiles can be exported as portable JSON from the group-members screen.
 
 Name list format:
 - names can be entered on separate lines;
@@ -202,7 +228,7 @@ Important:
 - Java `25`
 - Fabric Loader `0.19.3`
 - Mod Menu `18.0.0-alpha.8` optional
-- Current project mod version: `1.0.4`
+- Current project mod version: `1.1.0`
 
 ### Build
 

@@ -3,7 +3,7 @@
   "id": "tabnamedimmer",
   "version": "${version}",
   "name": "Tab Name Dimmer",
-  "description": "Dims non-whitelisted player names in the tab list while Shift is held.",
+  "description": "Organizes tracked players into groups and highlights, filters, sorts, outlines, or shows them in a configurable Tab HUD.",
   "icon": "assets/tabnamedimmer/icon.png",
   "authors": [
     "LTS_Server"
@@ -29,7 +29,8 @@
     "minecraft": ">=26.1.2 <=26.2",
     "java": ">=25",
     "fabric-networking-api-v1": "*",
-    "fabric-lifecycle-events-v1": "*"
+    "fabric-lifecycle-events-v1": "*",
+    "fabric-key-mapping-api-v1": "*"
   },
   "suggests": {
     "modmenu": "*"
