@@ -13,8 +13,7 @@ public final class PlayerNameStyler {
         }
         TabNameDimmerConfig config = TabNameDimmerConfig.current();
         TabNameDimmerConfig.Match match = config.findMatch(playerName, ServerScopeTracker.currentScope());
-        Integer color = match == null ? config.dimColor
-                : match.group().colorizeNames ? match.group().color : null;
+        Integer color = resolveColor(config, match);
         if (color == null) {
             return original;
         }
@@ -23,5 +22,15 @@ public final class PlayerNameStyler {
             styled.append(segment.copy().withStyle(style -> style.withColor(color)));
         }
         return styled;
+    }
+
+    static Integer resolveColor(TabNameDimmerConfig config, TabNameDimmerConfig.Match match) {
+        if (match == null) {
+            return Integer.valueOf(config.dimColor);
+        }
+        if (!match.group().colorizeNames) {
+            return null;
+        }
+        return Integer.valueOf(match.group().color);
     }
 }
