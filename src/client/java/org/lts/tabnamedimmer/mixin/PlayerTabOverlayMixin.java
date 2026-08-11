@@ -19,7 +19,7 @@ public class PlayerTabOverlayMixin {
             return;
         }
 
-        TabNameDimmerConfig config = TabNameDimmerConfig.loadIfChanged();
+        TabNameDimmerConfig config = TabNameDimmerConfig.current();
         String playerName = playerInfo.getProfile().name();
         if (!config.shouldDim(playerName)) {
             return;
@@ -35,7 +35,7 @@ public class PlayerTabOverlayMixin {
     @Inject(method = "extractRenderState", at = @At("RETURN"))
     private void tabnamedimmer$renderExtraHud(net.minecraft.client.gui.GuiGraphicsExtractor graphics, int width, net.minecraft.world.scores.Scoreboard scoreboard, net.minecraft.world.scores.Objective objective, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
         if (!TabNameDimmerClient.isShiftDown()) return;
-        TabNameDimmerConfig config = TabNameDimmerConfig.loadIfChanged();
+        TabNameDimmerConfig config = TabNameDimmerConfig.current();
         if (!config.enabled) return;
         if (config.displayMode != TabNameDimmerConfig.DisplayMode.EXTRA_HUD) return;
 

@@ -22,7 +22,7 @@ public class TabNameDimmerConfig {
     private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("tab-name-dimmer.json");
     private static final Path BACKUP_PATH = CONFIG_PATH.resolveSibling("tab-name-dimmer.json.bak");
 
-    private static TabNameDimmerConfig instance = defaults();
+    private static volatile TabNameDimmerConfig instance = defaults();
     private static long lastModified = -1L;
 
 public enum DisplayMode {
@@ -57,19 +57,26 @@ public enum DisplayMode {
 
     private static long nextCheckTime = 0;
 
-    public static TabNameDimmerConfig loadIfChanged() {
+    /**
+     * Polls the config file from the client tick, never from a render hook.
+     */
+    public static void pollForChanges() {
         long now = System.currentTimeMillis();
         if (now > nextCheckTime) {
             nextCheckTime = now + 1000L;
             try {
                 long modified = Files.exists(CONFIG_PATH) ? Files.getLastModifiedTime(CONFIG_PATH).toMillis() : -1L;
                 if (modified != lastModified) {
-                    return load();
+                    load();
                 }
             } catch (IOException exception) {
                 TabNameDimmerClient.LOGGER.warn("Failed to check {}", CONFIG_PATH, exception);
             }
         }
+    }
+
+    /** Returns the in-memory snapshot without doing file I/O. */
+    public static TabNameDimmerConfig current() {
         return instance;
     }
 

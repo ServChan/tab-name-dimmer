@@ -3,12 +3,15 @@ plugins {
     id 'maven-publish'
 }
 
+import groovy.json.JsonSlurper
+
 version = project.mod_version
 group = project.maven_group
 def modVersion = project.version.toString()
 def licenseArchiveName = project.name
 def minecraftVersionKey = project.minecraft_version.toString().replace('.', '_')
 def fabricNetworkingApiVersion = project.property("fabric_networking_api_version_${minecraftVersionKey}")
+def fabricLifecycleEventsVersion = project.property("fabric_lifecycle_events_version_${minecraftVersionKey}")
 def localModMenu = file(project.modmenu_jar)
 
 base {
@@ -50,6 +53,7 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-networking-api-v1:${fabricNetworkingApiVersion}"
+    implementation "net.fabricmc.fabric-api:fabric-lifecycle-events-v1:${fabricLifecycleEventsVersion}"
     if (localModMenu.isFile()) {
         compileOnly files(localModMenu)
     } else {
@@ -69,6 +73,40 @@ tasks.withType(ProcessResources).configureEach {
 
 tasks.withType(JavaCompile).configureEach {
     it.options.release = 25
+    it.options.encoding = "UTF-8"
+    it.options.compilerArgs += ["-Xlint:deprecation"]
+}
+
+def languageFiles = fileTree("src/client/resources/assets/tabnamedimmer/lang") {
+    include "*.json"
+}
+
+tasks.register("verifyLocalization") {
+    group = "verification"
+    description = "Checks that all supported locale files contain the same translation keys."
+    inputs.files(languageFiles)
+
+    doLast {
+        def parsed = languageFiles.files.sort { it.name }.collectEntries { file ->
+            [(file.name): new JsonSlurper().parse(file) as Map]
+        }
+        def expectedLocales = ["en_us.json", "es_es.json", "es_mx.json", "ru_ru.json"] as Set
+        if (parsed.keySet() != expectedLocales) {
+            throw new GradleException("Expected locale files ${expectedLocales}, found ${parsed.keySet()}")
+        }
+        def referenceKeys = parsed["en_us.json"].keySet()
+        parsed.each { name, translations ->
+            def missing = referenceKeys - translations.keySet()
+            def extra = translations.keySet() - referenceKeys
+            if (!missing.isEmpty() || !extra.isEmpty()) {
+                throw new GradleException("Locale ${name} differs from en_us.json; missing=${missing}, extra=${extra}")
+            }
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn tasks.named("verifyLocalization")
 }
 
 java {

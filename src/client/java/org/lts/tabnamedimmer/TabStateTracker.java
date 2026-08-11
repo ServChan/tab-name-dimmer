@@ -1,6 +1,5 @@
 package org.lts.tabnamedimmer;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -18,8 +17,13 @@ public class TabStateTracker {
     private long lastCleanupTime = System.currentTimeMillis();
 
     public Stream<PlayerInfo> processPlayers(Stream<PlayerInfo> stream, Comparator<? super PlayerInfo> originalComparator) {
-        TabNameDimmerConfig config = TabNameDimmerConfig.loadIfChanged();
+        TabNameDimmerConfig config = TabNameDimmerConfig.current();
         List<PlayerInfo> originalList = stream.sorted(originalComparator).collect(Collectors.toList());
+
+        if (!config.enabled) {
+            displayWeights.clear();
+            return originalList.stream();
+        }
 
         long now = System.currentTimeMillis();
         long currentNanos = System.nanoTime();
@@ -35,7 +39,7 @@ public class TabStateTracker {
         boolean shiftDown = TabNameDimmerClient.isShiftDown();
 
         if (config.displayMode == TabNameDimmerConfig.DisplayMode.FILTER && shiftDown) {
-            return originalList.stream().filter(p -> config.shouldDim(p.getProfile().name()) == false);
+            return originalList.stream().filter(p -> !config.shouldDim(p.getProfile().name()));
         }
 
         if (config.displayMode == TabNameDimmerConfig.DisplayMode.ANIMATED_SORT) {
@@ -68,5 +72,10 @@ public class TabStateTracker {
         }
 
         return originalList.stream();
+    }
+
+    public void clear() {
+        displayWeights.clear();
+        lastUpdateTimeNanos = System.nanoTime();
     }
 }

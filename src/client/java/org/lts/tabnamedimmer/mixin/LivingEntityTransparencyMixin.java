@@ -29,7 +29,7 @@ public abstract class LivingEntityTransparencyMixin {
         if (!TabNameDimmerClient.isShiftDown() || !TabNameDimmerClient.isTabListOpen()) {
             return collector;
         }
-        TabNameDimmerConfig config = TabNameDimmerConfig.loadIfChanged();
+        TabNameDimmerConfig config = TabNameDimmerConfig.current();
         if (!config.enabled || !config.playerTransparencyEnabled) {
             return collector;
         }

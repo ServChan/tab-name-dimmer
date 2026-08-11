@@ -32,7 +32,7 @@ public abstract class EntityGlowingMixin {
     private void tabNameDimmer$onIsCurrentlyGlowing(CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValueZ() && (Object) this instanceof Player player) {
             if (TabNameDimmerClient.isShiftDown() && TabNameDimmerClient.isTabListOpen()) {
-                TabNameDimmerConfig config = TabNameDimmerConfig.loadIfChanged();
+                TabNameDimmerConfig config = TabNameDimmerConfig.current();
                 if (tabNameDimmer$shouldGlow(player, config)) {
                     cir.setReturnValue(true);
                 }
@@ -44,7 +44,7 @@ public abstract class EntityGlowingMixin {
     private void tabNameDimmer$onGetTeamColor(CallbackInfoReturnable<Integer> cir) {
         if ((Object) this instanceof Player player) {
             if (TabNameDimmerClient.isShiftDown() && TabNameDimmerClient.isTabListOpen()) {
-                TabNameDimmerConfig config = TabNameDimmerConfig.loadIfChanged();
+                TabNameDimmerConfig config = TabNameDimmerConfig.current();
                 if (tabNameDimmer$shouldGlow(player, config)) {
                     int color = extractAverageColor(player);
                     if (color != -1) {

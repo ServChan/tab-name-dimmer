@@ -27,6 +27,9 @@ import java.util.Locale;
 public class TabNameDimmerConfigScreen extends Screen {
     private static final int FIELD_HEIGHT = 20;
     private static final int ROW_HEIGHT = 26;
+    private static final long MAX_IMPORT_BYTES = 1024L * 1024L;
+    private static final float[] OPACITY_PRESETS = {0.15F, 0.3F, 0.5F, 0.75F, 1.0F};
+    private static final float[] SPEED_PRESETS = {0.01F, 0.025F, 0.05F, 0.1F, 0.2F};
     private static final SystemToast.SystemToastId SAVE_TOAST_ID = new SystemToast.SystemToastId();
 
     private final Screen parent;
@@ -39,6 +42,7 @@ public class TabNameDimmerConfigScreen extends Screen {
     private EditBox dimColor;
     private NameList nameList;
     private String importMessage = "";
+    private int nameListLabelY;
 
     public TabNameDimmerConfigScreen(Screen parent) {
         super(Component.translatable("tabnamedimmer.screen.title"));
@@ -88,6 +92,18 @@ public class TabNameDimmerConfigScreen extends Screen {
                 .build());
 
         y += 24;
+        addRenderableWidget(Button.builder(opacityLabel(), button -> {
+            config.dimOpacity = nextPreset(config.dimOpacity, OPACITY_PRESETS);
+            button.setMessage(opacityLabel());
+        }).bounds(left, y, columnWidth, FIELD_HEIGHT).build());
+
+        addRenderableWidget(Button.builder(animationSpeedLabel(), button -> {
+            config.animationSpeed = nextPreset(config.animationSpeed, SPEED_PRESETS);
+            button.setMessage(animationSpeedLabel());
+        }).bounds(left + columnWidth + columnGap, y, columnWidth, FIELD_HEIGHT).build());
+
+        y += 24;
+        nameListLabelY = y + 4;
         int listTop = y + 14;
         int listHeight = Math.max(0, this.height - 82 - listTop);
         nameList = new NameList(left, listTop, contentWidth, listHeight);
@@ -123,12 +139,11 @@ public class TabNameDimmerConfigScreen extends Screen {
 
         int contentWidth = Math.min(520, this.width - 40);
         int left = (this.width - contentWidth) / 2;
-        int labelY = 118;
         int nameCount = nameList == null ? 0 : nameList.names().size();
-        graphics.text(this.font, Component.translatable("tabnamedimmer.field.allowed_names_count", nameCount), left, labelY, 0xFFD8DEE9);
+        graphics.text(this.font, Component.translatable("tabnamedimmer.field.allowed_names_count", nameCount), left, nameListLabelY, 0xFFD8DEE9);
         if (!importMessage.isBlank()) {
             int labelWidth = this.font.width(Component.translatable("tabnamedimmer.field.allowed_names"));
-            graphics.text(this.font, Component.literal(importMessage), left + labelWidth + 10, labelY, 0xFF88C0D0);
+            graphics.text(this.font, Component.literal(importMessage), left + labelWidth + 10, nameListLabelY, 0xFF88C0D0);
         }
         graphics.text(this.font, Component.translatable("tabnamedimmer.option.dim_color"), left, this.height - 72, 0xFFD8DEE9);
         Integer previewColor = parseColor(dimColor == null ? "" : dimColor.getValue());
@@ -258,6 +273,30 @@ public class TabNameDimmerConfigScreen extends Screen {
         return Component.translatable("tabnamedimmer.option.player_transparency", onOff(config.playerTransparencyEnabled));
     }
 
+    private Component opacityLabel() {
+        return Component.translatable("tabnamedimmer.option.player_opacity", Math.round(config.dimOpacity * 100.0F));
+    }
+
+    private Component animationSpeedLabel() {
+        return Component.translatable("tabnamedimmer.option.animation_speed", formatPercent(config.animationSpeed));
+    }
+
+    private static String formatPercent(float value) {
+        float percent = value * 100.0F;
+        return percent == Math.round(percent)
+                ? Integer.toString(Math.round(percent))
+                : String.format(Locale.ROOT, "%.1f", percent);
+    }
+
+    private static float nextPreset(float current, float[] presets) {
+        for (float preset : presets) {
+            if (preset > current + 0.0001F) {
+                return preset;
+            }
+        }
+        return presets[0];
+    }
+
     private static Component onOff(boolean value) {
         return Component.translatable(value ? "tabnamedimmer.state.on" : "tabnamedimmer.state.off");
     }
@@ -288,13 +327,20 @@ public class TabNameDimmerConfigScreen extends Screen {
     }
 
     private void importNamesFromTxt() {
-        String selectedFile = TinyFileDialogs.tinyfd_openFileDialog(
-                Component.translatable("tabnamedimmer.import.title").getString(),
-                "",
-                null,
-                null,
-                false
-        );
+        String selectedFile;
+        try {
+            selectedFile = TinyFileDialogs.tinyfd_openFileDialog(
+                    Component.translatable("tabnamedimmer.import.title").getString(),
+                    "",
+                    null,
+                    null,
+                    false
+            );
+        } catch (LinkageError | RuntimeException exception) {
+            org.lts.tabnamedimmer.TabNameDimmerClient.LOGGER.warn("Unable to open the name import dialog", exception);
+            importMessage = Component.translatable("tabnamedimmer.import.no_dialog").getString();
+            return;
+        }
 
         if (selectedFile == null || selectedFile.isBlank()) {
             return;
@@ -305,10 +351,15 @@ public class TabNameDimmerConfigScreen extends Screen {
         }
 
         try {
+            if (Files.size(Path.of(selectedFile)) > MAX_IMPORT_BYTES) {
+                importMessage = Component.translatable("tabnamedimmer.import.too_large").getString();
+                return;
+            }
             List<String> imported = Files.readAllLines(Path.of(selectedFile), StandardCharsets.UTF_8);
             int added = nameList.addNames(imported, config.caseSensitive);
             importMessage = Component.translatable("tabnamedimmer.import.added", added).getString();
         } catch (IOException | RuntimeException exception) {
+            org.lts.tabnamedimmer.TabNameDimmerClient.LOGGER.warn("Failed to import the selected name list", exception);
             importMessage = Component.translatable("tabnamedimmer.import.failed").getString();
         }
     }

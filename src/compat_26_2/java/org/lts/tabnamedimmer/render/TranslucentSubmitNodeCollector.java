@@ -30,6 +30,7 @@ import org.joml.Quaternionf;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.IdentityHashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -43,6 +44,8 @@ import java.util.Map;
  * changed signatures, and new abstract methods were added.
  */
 public class TranslucentSubmitNodeCollector implements SubmitNodeCollector {
+    private static final int MAX_RENDER_TYPE_CACHE_SIZE = 256;
+    private static final Map<RenderType, RenderType> TRANSLUCENT_TYPE_CACHE = new IdentityHashMap<>();
     private final OrderedSubmitNodeCollector delegate;
     private final float opacity;
 
@@ -65,18 +68,30 @@ public class TranslucentSubmitNodeCollector implements SubmitNodeCollector {
         if (type == null || type.hasBlending()) {
             return type;
         }
+        synchronized (TRANSLUCENT_TYPE_CACHE) {
+            if (TRANSLUCENT_TYPE_CACHE.containsKey(type)) {
+                return TRANSLUCENT_TYPE_CACHE.get(type);
+            }
+        }
         Identifier texture = extractTexture(type);
-        if (texture == null) {
-            return type;
+        RenderType converted = type;
+        if (texture != null) {
+            String name = type.toString().toLowerCase(Locale.ROOT);
+            if (name.contains("armor")) {
+                converted = RenderTypes.armorTranslucent(texture);
+            } else if (name.contains("item")) {
+                converted = RenderTypes.itemTranslucent(texture);
+            } else {
+                converted = RenderTypes.entityTranslucent(texture);
+            }
         }
-        String name = type.toString().toLowerCase(Locale.ROOT);
-        if (name.contains("armor")) {
-            return RenderTypes.armorTranslucent(texture);
-        } else if (name.contains("item")) {
-            return RenderTypes.itemTranslucent(texture);
-        } else {
-            return RenderTypes.entityTranslucent(texture);
+        synchronized (TRANSLUCENT_TYPE_CACHE) {
+            if (TRANSLUCENT_TYPE_CACHE.size() >= MAX_RENDER_TYPE_CACHE_SIZE) {
+                TRANSLUCENT_TYPE_CACHE.clear();
+            }
+            TRANSLUCENT_TYPE_CACHE.put(type, converted);
         }
+        return converted;
     }
 
     private static Identifier extractTexture(RenderType type) {

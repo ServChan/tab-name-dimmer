@@ -33,6 +33,8 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 - список ников, которые остаются яркими и заметными;
 - несколько режимов отображения для разных сценариев;
 - настройку цвета затемнения;
+- отдельную настройку прозрачности моделей игроков и скорости анимированной сортировки;
+- опциональный цветной контур и прозрачность моделей игроков вне списка;
 - чувствительность или нечувствительность к регистру;
 - импорт ников из `.txt`;
 - интеграцию с Mod Menu для настройки через интерфейс.
@@ -55,6 +57,10 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 - `Case sensitive`: учитывает регистр букв при сравнении ников;
 - `Mode`: переключает режим отображения;
 - `Dim color`: задает цвет затемнения в формате `#RRGGBB`;
+- `Glowing outline`: включает контур выбранных игроков во время `Shift+Tab`;
+- `Player transparency`: делает игроков вне списка полупрозрачными;
+- `Dimmed player opacity`: задает видимость полупрозрачных моделей;
+- `Sorting speed`: задает скорость плавной сортировки;
 - `Names that stay bright`: список ников, которые не нужно затемнять;
 - `Import .txt`: импортирует ники из текстового файла.
 
@@ -71,15 +77,16 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 
 Для работы нужны:
 - [Fabric Loader](https://fabricmc.net/use/installer/) `0.19.3+`
-- Minecraft `26.1.2`-`26.2` (one JAR)
+- Minecraft `26.1.2`-`26.2` (один JAR)
 - Java `25+`
+- Fabric API с модулями Networking и Lifecycle Events
 
 Рекомендуется:
 - [Mod Menu](https://modrinth.com/mod/modmenu) для настройки через GUI
 
 Важно:
 - мод полностью клиентский;
-- Fabric API не требуется, если он не нужен другим вашим модам;
+- Fabric API обязателен для обработки подключения и безопасной проверки конфигурации вне render-пути;
 - для работы затемнения удерживайте `Shift` при открытом Tab-списке.
 
 ### Совместимость
@@ -88,7 +95,7 @@ Tab Name Dimmer добавляет к стандартному Tab-списку 
 - Java `25`
 - Fabric Loader `0.19.3`
 - Mod Menu `18.0.0-alpha.8` опционально
-- Текущая версия мода в проекте: `1.0.3`
+- Текущая версия мода в проекте: `1.0.4`
 
 ### Сборка
 
@@ -133,6 +140,8 @@ Tab Name Dimmer extends the standard Minecraft player list with:
 - a list of names that stay bright and easy to spot;
 - several display modes for different workflows;
 - configurable dim color;
+- separate controls for player-model opacity and animated sorting speed;
+- optional glowing outlines and translucent models for players outside the allowlist;
 - optional case-sensitive matching;
 - `.txt` name import;
 - Mod Menu integration for in-game configuration.
@@ -155,6 +164,10 @@ Available settings:
 - `Case sensitive`: toggles case-sensitive name matching;
 - `Mode`: switches the display mode;
 - `Dim color`: sets the dim color in `#RRGGBB` format;
+- `Glowing outline`: outlines selected players while `Shift+Tab` is active;
+- `Player transparency`: makes players outside the allowlist translucent;
+- `Dimmed player opacity`: controls translucent model visibility;
+- `Sorting speed`: controls animated sorting speed;
 - `Names that stay bright`: names that should not be dimmed;
 - `Import .txt`: imports names from a text file.
 
@@ -173,13 +186,14 @@ Required:
 - [Fabric Loader](https://fabricmc.net/use/installer/) `0.19.3+`
 - Minecraft `26.1.2`-`26.2` (one JAR)
 - Java `25+`
+- Fabric API with the Networking and Lifecycle Events modules
 
 Recommended:
 - [Mod Menu](https://modrinth.com/mod/modmenu) for GUI configuration
 
 Important:
 - this is a fully client-side mod;
-- Fabric API is not required unless another installed mod needs it;
+- Fabric API is required for connection handling and render-safe config polling;
 - hold `Shift` while the Tab player list is open to activate the dimming behavior.
 
 ### Compatibility
@@ -188,7 +202,7 @@ Important:
 - Java `25`
 - Fabric Loader `0.19.3`
 - Mod Menu `18.0.0-alpha.8` optional
-- Current project mod version: `1.0.3`
+- Current project mod version: `1.0.4`
 
 ### Build
 
@@ -212,6 +226,6 @@ Output:
 
 Settings are written to a sibling temporary file and atomically replace the main JSON where supported. A failed save keeps the screen open and reports the failure instead of showing the success toast. When the mod is disabled, the extra HUD, filtering, sorting, and glowing outlines are inactive.
 
-The same sources were compiled against Minecraft 26.1.2 and 26.2 on 2026-07-22. Tab rendering with BetterTab and a populated live server list still requires an in-game compatibility pass.
+The same sources were compiled against Minecraft 26.1.2 and 26.2 on 2026-08-11. Tab rendering with BetterTab, Sodium/Iris/Voxy, and a populated live server list still requires an in-game compatibility pass.
 
 The optional BetterTab compatibility mixin is now loaded only when Fabric reports that `bettertab` is installed, avoiding the previous missing-target warning in profiles without BetterTab.

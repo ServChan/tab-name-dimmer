@@ -34,7 +34,7 @@ public class BetterTabToolsMixin {
     @Inject(method = "getPlayerName", at = @At("RETURN"), cancellable = true)
     private static void tabNameDimmer$onGetPlayerName(PlayerInfo entry, CallbackInfoReturnable<Component> cir) {
         if (!TabNameDimmerClient.isShiftDown()) return;
-        TabNameDimmerConfig config = TabNameDimmerConfig.loadIfChanged();
+        TabNameDimmerConfig config = TabNameDimmerConfig.current();
         if (!config.shouldDim(entry.getProfile().name())) return;
 
         MutableComponent dimmedName = Component.empty();
