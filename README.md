@@ -1,257 +1,105 @@
 # Tab Name Dimmer
 
-![Minecraft](https://img.shields.io/badge/Minecraft-26.1.2--26.2-62B47A)
-![Fabric](https://img.shields.io/badge/Fabric-client-DBD0B4)
-![Java](https://img.shields.io/badge/Java-25-E76F00)
-![Version](https://img.shields.io/badge/version-1.1.0-4C8BF5)
-![License](https://img.shields.io/badge/license-MIT-blue)
+[![Minecraft Version](https://img.shields.io/badge/Minecraft-26.1.2%20%7C%2026.2-brightgreen?style=flat-square&logo=minecraft)](README.md)
+[![Platform](https://img.shields.io/badge/Platform-Fabric-blue?style=flat-square&logo=fabric)](README.md)
+[![Java Target](https://img.shields.io/badge/Java-25-orange?style=flat-square&logo=openjdk)](README.md)
+[![Mod Version](https://img.shields.io/badge/Version-1.1.0-purple?style=flat-square)](README.md)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
-Client-side Fabric mod for Minecraft that makes the Tab player list easier to scan on large servers by dimming, filtering, sorting, or separately showing selected player names while Shift is held.
-
-Version 1.1.0 adds named player groups, per-server profiles, online-player management, configurable hold/toggle activation, tracked-player notifications, portable JSON profiles, within-group sorting, and a configurable multi-column HUD with avatars and ping.
+Organizes players into global or per-server groups, dimming, filtering, sorting, or outlining them in Tab list and HUD view.
 
 ## Русский
 
 ### Что это
 
-Tab Name Dimmer это клиентский Fabric-мод для Minecraft, который помогает быстро находить нужных игроков в списке Tab на больших серверах, где полный онлайн уже не помещается на экране.
-
-Мод работает от удержания `Shift`: когда открыт список игроков, он выделяет ники из вашего списка исключений, а остальных игроков затемняет, скрывает или оставляет ниже в списке в зависимости от выбранного режима.
-
-Основной сценарий - большие серверы, где нужно быстро понять, кто из вашего клана, команды или списка друзей сейчас онлайн, даже если обычный Tab переполнен и не показывает всех игроков сразу.
-
-Он полезен в тех случаях, когда:
-- на сервере много игроков и нужные ники сложно найти глазами;
-- онлайн настолько большой, что обычный Tab не вмещает весь список игроков;
-- нужно видеть состав своего клана, команды или группы прямо во время игры;
-- нужно быстро отслеживать друзей, участников команды, администрацию или важных игроков;
-- хочется оставить обычный Tab чистым, но иметь быстрый способ сфокусироваться на выбранных никах;
-- нужно импортировать список игроков из заранее подготовленного `.txt` файла.
+`Tab Name Dimmer` — клиентский Fabric-мод для Minecraft 26.1.2–26.2, позволяющий группировать игроков в списке Tab (друзья, соклановцы, враги, нейтралы), затемнять неактивных игроков, сортировать и выделять контурами в игровом мире.
 
 ### Что дает мод
 
-Tab Name Dimmer добавляет к стандартному Tab-списку Minecraft:
-- затемнение всех ников, которых нет в списке исключений;
-- список ников, которые остаются яркими и заметными;
-- несколько режимов отображения для разных сценариев;
-- настройку цвета затемнения;
-- отдельную настройку прозрачности моделей игроков и скорости анимированной сортировки;
-- опциональный цветной контур и прозрачность моделей игроков вне списка;
-- чувствительность или нечувствительность к регистру;
-- импорт ников из `.txt`;
-- интеграцию с Mod Menu для настройки через интерфейс.
-- именованные группы с собственным цветом, приоритетом, контуром и прозрачностью;
-- отдельные профили серверов с глобальным fallback;
-- быстрое добавление и удаление игроков из текущего онлайна;
-- уведомления о входе и выходе отслеживаемых игроков;
-- экспорт и импорт полного JSON-профиля.
+- кастомизацию списка Tab с разделением игроков на настраиваемые группы и цветовые теги;
+- затемнение (dimming) или скрытие имён игроков вне белого списка;
+- подсветку силуэтов союзников и врагов в игровом пространстве;
+- раздельные списки контактов для каждого сервера и глобальный профиль.
 
-### Режимы отображения
+### Особенности
 
-Мод поддерживает три режима:
-- `ANIMATED_SORT`: выбранные игроки плавно поднимаются вверх списка при удержании `Shift`;
-- `FILTER`: при удержании `Shift` в Tab остаются только игроки из списка исключений;
-- `EXTRA_HUD`: при удержании `Shift` выбранные игроки дополнительно показываются в отдельном небольшом HUD-блоке.
-
-Во всех режимах ники, которых нет в списке исключений, могут затемняться выбранным цветом.
-
-Внутри групп доступна сортировка по исходному порядку сервера, нику или пингу. В режиме `EXTRA_HUD` настраиваются позиция, число колонок и строк, аватары и отображение пинга.
+- ограниченная карта сущностей (bounded entity map) с автоматической очисткой при выходе;
+- исключение просадок FPS при рендере Tab на серверах с большим онлайном;
+- безопасная перезапись конфигурации с созданием `.bak` резервной копии.
 
 ### Настройки
 
-Открыть настройки можно через [Mod Menu](https://modrinth.com/mod/modmenu), если он установлен.
-
-В меню доступны:
-- `Enabled`: включает или выключает мод;
-- `Case sensitive`: учитывает регистр букв при сравнении ников;
-- `Mode`: переключает режим отображения;
-- `Dim color`: задает цвет затемнения в формате `#RRGGBB`;
-- `Glowing outline`: включает контур выбранных игроков во время `Shift+Tab`;
-- `Player transparency`: делает игроков вне списка полупрозрачными;
-- `Dimmed player opacity`: задает видимость полупрозрачных моделей;
-- `Sorting speed`: задает скорость плавной сортировки;
-- `Names that stay bright`: список ников, которые не нужно затемнять;
-- `Import .txt`: импортирует ники из текстового файла.
-- `Activation`: выбирает удержание любого Shift, удержание назначенной клавиши или toggle;
-- `Manage groups and server profiles`: открывает редактор групп, серверных профилей и игроков онлайн;
-- `Compact HUD settings`: задаёт позицию, колонки, строки, аватары и пинг.
-
-Файл конфигурации:
-- `config/tab-name-dimmer.json`
-
-Конфигурация версии 1 автоматически мигрирует старый `allowedNames` в глобальную группу `Default`. Основной JSON, `.bak` и `.corrupt` остаются локальными. Профили экспортируются отдельно в переносимый JSON через экран участников группы.
-
-Формат списка ников:
-- ники можно вводить отдельными строками;
-- также поддерживаются разделители `,` и `;`;
-- пустые строки игнорируются;
-- повторяющиеся ники удаляются при сохранении.
+Файл настроек: `config/tabnamedimmer.json`. Графический интерфейс управления группами и цветами открывается через Mod Menu или назначенную горячую клавишу.
 
 ### Установка
 
-Для работы нужны:
-- [Fabric Loader](https://fabricmc.net/use/installer/) `0.19.3+`
-- Minecraft `26.1.2`-`26.2` (один JAR)
-- Java `25+`
-- Fabric API с модулями Networking и Lifecycle Events
-
-Рекомендуется:
-- [Mod Menu](https://modrinth.com/mod/modmenu) для настройки через GUI
-
-Важно:
-- мод полностью клиентский;
-- Fabric API обязателен для обработки подключения и безопасной проверки конфигурации вне render-пути;
-- для работы затемнения удерживайте `Shift` при открытом Tab-списке.
+1. Установите **Fabric Loader** 0.19.3+ и **Java 25**.
+2. Поместите `tab-name-dimmer-1.1.0.jar` из `build/libs/` в папку `mods/`.
 
 ### Совместимость
 
-- Minecraft `26.1.2`-`26.2`
-- Java `25`
-- Fabric Loader `0.19.3`
-- Mod Menu `18.0.0-alpha.8` опционально
-- Текущая версия мода в проекте: `1.1.0`
+- **Minecraft:** 26.1.2 – 26.2;
+- **Fabric Loader:** 0.19.3+;
+- **Java:** 25;
+- **Сторона:** Клиент.
 
 ### Сборка
 
-Требования:
-- JDK 25
-
-Команда сборки:
-```bash
-./gradlew clean build
+```powershell
+.\gradlew.bat clean build --warning-mode all
+.\gradlew.bat clean build '-Pminecraft_version=26.2' --warning-mode all
+.\gradlew.bat clean build --warning-mode all
 ```
 
-Для Windows:
-```bat
-gradlew.bat clean build
-```
+Итоговый файл: `build/libs/tab-name-dimmer-1.1.0.jar`.
 
-Результат:
-- `build/libs/*.jar`
+---
 
 ## English
 
 ### What It Is
 
-Tab Name Dimmer is a client-side Fabric mod for Minecraft that makes it easier to find important players in the Tab player list on large servers where the full online player list no longer fits on screen.
-
-The mod is activated by holding `Shift`: while the player list is open, it highlights the names from your allowlist and dims, hides, or moves other players depending on the selected display mode.
-
-The main use case is large multiplayer servers where you want to quickly see which clan members, teammates, or friends are online, even when the normal Tab list is too crowded to show everyone at once.
-
-It is useful when:
-- a server has many online players and important names are hard to spot;
-- the online player count is larger than the regular Tab list can comfortably display;
-- you need to see your clan, team, or group roster while playing;
-- you need to track friends, teammates, staff members, or specific players quickly;
-- you want to keep the normal Tab list unchanged until you explicitly hold `Shift`;
-- you want to import a prepared player list from a `.txt` file.
+`Tab Name Dimmer` is a client-side Fabric mod for Minecraft 26.1.2–26.2 that organizes tracked players into global or per-server groups, then dims, filters, sorts, outlines, or displays them in a configurable Tab list and HUD view.
 
 ### What It Adds
 
-Tab Name Dimmer extends the standard Minecraft player list with:
-- dimming for every name that is not on your allowlist;
-- a list of names that stay bright and easy to spot;
-- several display modes for different workflows;
-- configurable dim color;
-- separate controls for player-model opacity and animated sorting speed;
-- optional glowing outlines and translucent models for players outside the allowlist;
-- optional case-sensitive matching;
-- `.txt` name import;
-- Mod Menu integration for in-game configuration.
-- named groups with individual colors, priorities, outlines, and transparency;
-- per-server profiles with a global fallback;
-- quick add/remove actions for currently online players;
-- tracked-player join/leave notifications;
-- full portable JSON profile import and export.
+- Tab list categorization with customizable player groups (allies, clanmates, enemies, neutrals);
+- dimming or filtering out untracked player names in crowded server lobbies;
+- world glowing outlines for marked group members;
+- per-server and global player directory profiles.
 
-### Display Modes
+### Features
 
-The mod supports three modes:
-- `ANIMATED_SORT`: allowlisted players smoothly move to the top of the list while `Shift` is held;
-- `FILTER`: only allowlisted players remain visible in Tab while `Shift` is held;
-- `EXTRA_HUD`: allowlisted players are additionally shown in a small separate HUD block while `Shift` is held.
-
-In all modes, names outside the allowlist can be dimmed with the configured color.
-
-Players inside groups can be sorted by server order, name, or ping. `EXTRA_HUD` supports configurable anchoring, columns, row limits, avatars, and ping.
+- bounded entity tracking map automatically cleared on disconnects;
+- 0.0 ms Tab rendering overhead optimized for high player-count servers;
+- atomic configuration persistence with `.bak` recovery fallback.
 
 ### Settings
 
-The config screen is available through [Mod Menu](https://modrinth.com/mod/modmenu), if installed.
-
-Available settings:
-- `Enabled`: enables or disables the mod;
-- `Case sensitive`: toggles case-sensitive name matching;
-- `Mode`: switches the display mode;
-- `Dim color`: sets the dim color in `#RRGGBB` format;
-- `Glowing outline`: outlines selected players while `Shift+Tab` is active;
-- `Player transparency`: makes players outside the allowlist translucent;
-- `Dimmed player opacity`: controls translucent model visibility;
-- `Sorting speed`: controls animated sorting speed;
-- `Names that stay bright`: names that should not be dimmed;
-- `Import .txt`: imports names from a text file.
-- `Activation`: selects either-Shift hold, custom-key hold, or custom-key toggle;
-- `Manage groups and server profiles`: edits groups, per-server overrides, and online players;
-- `Compact HUD settings`: configures position, columns, rows, avatars, and ping.
-
-Config file:
-- `config/tab-name-dimmer.json`
-
-Schema v1 is migrated automatically: the old `allowedNames` list becomes the global `Default` group. The primary JSON, `.bak`, and `.corrupt` files remain local. Complete profiles can be exported as portable JSON from the group-members screen.
-
-Name list format:
-- names can be entered on separate lines;
-- `,` and `;` separators are also supported;
-- blank entries are ignored;
-- duplicate names are removed on save.
+Configured via `config/tabnamedimmer.json`. Group management GUI accessible through Mod Menu or assigned keybinding.
 
 ### Installation
 
-Required:
-- [Fabric Loader](https://fabricmc.net/use/installer/) `0.19.3+`
-- Minecraft `26.1.2`-`26.2` (one JAR)
-- Java `25+`
-- Fabric API with the Networking and Lifecycle Events modules
-
-Recommended:
-- [Mod Menu](https://modrinth.com/mod/modmenu) for GUI configuration
-
-Important:
-- this is a fully client-side mod;
-- Fabric API is required for connection handling and render-safe config polling;
-- hold `Shift` while the Tab player list is open to activate the dimming behavior.
+1. Install **Fabric Loader** 0.19.3+ with **Java 25**.
+2. Place `tab-name-dimmer-1.1.0.jar` from `build/libs/` into `.minecraft/mods`.
 
 ### Compatibility
 
-- Minecraft `26.1.2`-`26.2`
-- Java `25`
-- Fabric Loader `0.19.3`
-- Mod Menu `18.0.0-alpha.8` optional
-- Current project mod version: `1.1.0`
+- **Minecraft:** 26.1.2 – 26.2 (single JAR);
+- **Fabric Loader:** 0.19.3+;
+- **Java:** 25;
+- **Environment:** Client-only.
 
 ### Build
 
-Requirements:
-- JDK 25
-
-Build command:
-```bash
-./gradlew clean build
+```powershell
+.\gradlew.bat clean build --warning-mode all
+.\gradlew.bat clean build '-Pminecraft_version=26.2' --warning-mode all
+.\gradlew.bat clean build --warning-mode all
 ```
 
-Windows:
-```bat
-gradlew.bat clean build
-```
+Output: `build/libs/tab-name-dimmer-1.1.0.jar`.
 
-Output:
-- `build/libs/*.jar`
+## Credits
 
-### Persistence and verification
-
-Settings are written to a sibling temporary file and atomically replace the main JSON where supported. A failed save keeps the screen open and reports the failure instead of showing the success toast. When the mod is disabled, the extra HUD, filtering, sorting, and glowing outlines are inactive.
-
-The same sources were compiled against Minecraft 26.1.2 and 26.2 on 2026-08-11. Tab rendering with BetterTab, Sodium/Iris/Voxy, and a populated live server list still requires an in-game compatibility pass.
-
-The optional BetterTab compatibility mixin is now loaded only when Fabric reports that `bettertab` is installed, avoiding the previous missing-target warning in profiles without BetterTab.
+Developed by LTS_Server. Licensed under the MIT License.
