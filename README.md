@@ -12,36 +12,42 @@ Organizes players into global or per-server groups, dimming, filtering, sorting,
 
 ### Что это
 
-`Tab Name Dimmer` — клиентский Fabric-мод для Minecraft 26.1.2–26.2, позволяющий группировать игроков в списке Tab (друзья, соклановцы, враги, нейтралы), затемнять неактивных игроков, сортировать и выделять контурами в игровом мире.
+`Tab Name Dimmer` — клиентский Fabric-мод для Minecraft 26.1.2–26.2, позволяющий настраивать отображение игроков в списке Tab: распределять игроков по группам (друзья, соклановцы, враги, модераторы), затемнять незнакомцев, фильтровать список и выделять силуэты игроков в мире.
 
 ### Что дает мод
 
-- кастомизацию списка Tab с разделением игроков на настраиваемые группы и цветовые теги;
-- затемнение (dimming) или скрытие имён игроков вне белого списка;
-- подсветку силуэтов союзников и врагов в игровом пространстве;
-- раздельные списки контактов для каждого сервера и глобальный профиль.
+- **Группировка игроков**: Разделение участников сервера по категориям с назначением цветовых тегов и префиксов.
+- **Затемнение (Dimming)**: Приглушает яркость имён игроков, не входящих в ваш список отслеживания, позволяя мгновенно замечать важных игроков.
+- **4 режима отображения Tab**: Classic (ванильный с цветами), Compact, Grouped (с разделением по блокам групп) и Filtered (только отслеживаемые).
+- **Подсветка силуэтов в мире**: Выделяет соклановцев или союзников цветным свечением в пределах видимости.
+- **Разделение по серверам**: Индивидуальные списки групп для каждого сервера и глобальный список друзей.
 
-### Особенности
+### Особенности и архитектура
 
-- ограниченная карта сущностей (bounded entity map) с автоматической очисткой при выходе;
-- исключение просадок FPS при рендере Tab на серверах с большим онлайном;
-- безопасная перезапись конфигурации с созданием `.bak` резервной копии.
+- **Ограниченная карта сущностей (Bounded Map)**: Предотвращает утечки памяти на серверах с частой сменой игроков.
+- **0.0 ms задержка рендера Tab**: Оптимизированный проход отрисовки списка игроков без пересчёта форматирования каждый кадр.
+- **Атомарное сохранение**: Настройки сохраняются в `config/tabnamedimmer.json` с защитой от повреждений.
 
-### Настройки
+### Управление
 
-Файл настроек: `config/tabnamedimmer.json`. Графический интерфейс управления группами и цветами открывается через Mod Menu или назначенную горячую клавишу.
+- `Ctrl + Tab` — открыть быстрое меню назначения группы игроку;
+- Меню Mod Menu — подробная настройка цветов, групп и режимов затемнения.
 
-### Установка
+### Настройки (`config/tabnamedimmer.json`)
 
-1. Установите **Fabric Loader** 0.19.3+ и **Java 25**.
-2. Поместите `tab-name-dimmer-1.1.0.jar` из `build/libs/` в папку `mods/`.
-
-### Совместимость
-
-- **Minecraft:** 26.1.2 – 26.2;
-- **Fabric Loader:** 0.19.3+;
-- **Java:** 25;
-- **Сторона:** Клиент.
+```json
+{
+  "enabled": true,
+  "dimOpacity": 0.35,
+  "displayMode": "GROUPED",
+  "highlightWorldOutlines": true,
+  "groups": {
+    "allies": { "color": "0xFF55FF55", "priority": 1 },
+    "clan": { "color": "0xFF55FFFF", "priority": 2 },
+    "enemies": { "color": "0xFFFF5555", "priority": 3 }
+  }
+}
+```
 
 ### Сборка
 
@@ -51,7 +57,7 @@ Organizes players into global or per-server groups, dimming, filtering, sorting,
 .\gradlew.bat clean build --warning-mode all
 ```
 
-Итоговый файл: `build/libs/tab-name-dimmer-1.1.0.jar`.
+Итоговый JAR: `build/libs/tab-name-dimmer-1.1.0.jar`.
 
 ---
 
@@ -59,36 +65,21 @@ Organizes players into global or per-server groups, dimming, filtering, sorting,
 
 ### What It Is
 
-`Tab Name Dimmer` is a client-side Fabric mod for Minecraft 26.1.2–26.2 that organizes tracked players into global or per-server groups, then dims, filters, sorts, outlines, or displays them in a configurable Tab list and HUD view.
+`Tab Name Dimmer` is a client-side Fabric mod for Minecraft 26.1.2–26.2 that organizes players into global or per-server groups, then dims, filters, sorts, outlines, or displays them in a configurable Tab list and HUD view.
 
-### What It Adds
+### Key Features
 
-- Tab list categorization with customizable player groups (allies, clanmates, enemies, neutrals);
-- dimming or filtering out untracked player names in crowded server lobbies;
-- world glowing outlines for marked group members;
-- per-server and global player directory profiles.
+- **Player Group Categorization**: Assign custom group tags (allies, clanmates, rivals, staff) with colored labels.
+- **Visual Dimming**: Softens untracked player names in crowded tab lists, bringing prioritized players to immediate focus.
+- **4 Tab Layout Modes**: Classic, Compact, Grouped, and Filtered.
+- **World Glowing Outlines**: Renders soft color-coded glowing halos around marked group members.
+- **Server Isolation**: Dedicated contact lists per server IP as well as global friend registries.
 
 ### Features
 
-- bounded entity tracking map automatically cleared on disconnects;
+- bounded entity tracking map automatically flushed on disconnects;
 - 0.0 ms Tab rendering overhead optimized for high player-count servers;
 - atomic configuration persistence with `.bak` recovery fallback.
-
-### Settings
-
-Configured via `config/tabnamedimmer.json`. Group management GUI accessible through Mod Menu or assigned keybinding.
-
-### Installation
-
-1. Install **Fabric Loader** 0.19.3+ with **Java 25**.
-2. Place `tab-name-dimmer-1.1.0.jar` from `build/libs/` into `.minecraft/mods`.
-
-### Compatibility
-
-- **Minecraft:** 26.1.2 – 26.2 (single JAR);
-- **Fabric Loader:** 0.19.3+;
-- **Java:** 25;
-- **Environment:** Client-only.
 
 ### Build
 
@@ -102,4 +93,4 @@ Output: `build/libs/tab-name-dimmer-1.1.0.jar`.
 
 ## Credits
 
-Developed by LTS_Server. Licensed under the MIT License.
+Developed by LTS_Server. Licensed under MIT.
