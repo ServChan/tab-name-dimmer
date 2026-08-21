@@ -5,7 +5,7 @@ import net.minecraft.client.Minecraft;
 
 public final class ActivationController {
     private static boolean toggled;
-    private static boolean active;
+    private static volatile boolean active;
 
     private ActivationController() {
     }
@@ -14,7 +14,7 @@ public final class ActivationController {
         TabNameDimmerConfig config = TabNameDimmerConfig.current();
         if (!config.enabled || minecraft == null || minecraft.level == null) {
             active = false;
-            while (activationKey.consumeClick()) {
+            while (activationKey != null && activationKey.consumeClick()) {
                 // Discard stale clicks from menus and loading screens.
             }
             return;
@@ -24,19 +24,19 @@ public final class ActivationController {
             case HOLD_SHIFT -> {
                 toggled = false;
                 active = TabNameDimmerClient.isShiftDown();
-                while (activationKey.consumeClick()) {
+                while (activationKey != null && activationKey.consumeClick()) {
                     // The custom mapping is inactive in Shift mode.
                 }
             }
             case HOLD_KEY -> {
                 toggled = false;
-                active = activationKey.isDown();
-                while (activationKey.consumeClick()) {
+                active = activationKey != null && activationKey.isDown();
+                while (activationKey != null && activationKey.consumeClick()) {
                     // consumeClick is not used by hold mode.
                 }
             }
             case TOGGLE_KEY -> {
-                while (activationKey.consumeClick()) {
+                while (activationKey != null && activationKey.consumeClick()) {
                     toggled = !toggled;
                 }
                 active = toggled;

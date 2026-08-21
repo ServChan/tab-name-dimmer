@@ -38,7 +38,7 @@ final class GroupManagerScreen extends Screen {
     protected void init() {
         TabNameDimmerConfig.Profile profile = profile();
         groupIndex = Math.max(0, Math.min(groupIndex, profile.groups.size() - 1));
-        int contentWidth = Math.max(280, Math.min(520, width - 40));
+        int contentWidth = Math.min(520, Math.max(1, width - 20));
         int left = (width - contentWidth) / 2;
         int gap = 8;
         int columnWidth = (contentWidth - gap) / 2;
@@ -73,8 +73,11 @@ final class GroupManagerScreen extends Screen {
             groupIndex = (groupIndex + 1) % profile().groups.size();
             rebuildWidgets();
         }).bounds(left, y, columnWidth, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.add_group"), button -> {
+        Button addGroupButton = addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.add_group"), button -> {
             saveFields();
+            if (profile().groups.size() >= TabNameDimmerConfig.MAX_GROUPS) {
+                return;
+            }
             TabNameDimmerConfig.PlayerGroup group = TabNameDimmerConfig.PlayerGroup.defaultGroup();
             group.name = Component.translatable("tabnamedimmer.group.new", profile().groups.size() + 1).getString();
             group.priority = profile().groups.size();
@@ -83,6 +86,7 @@ final class GroupManagerScreen extends Screen {
             groupIndex = profile().groups.size() - 1;
             rebuildWidgets();
         }).bounds(left + columnWidth + gap, y, columnWidth, 20).build());
+        addGroupButton.active = profile.groups.size() < TabNameDimmerConfig.MAX_GROUPS;
         y += 24;
 
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.delete_group"), button -> {
@@ -145,8 +149,9 @@ final class GroupManagerScreen extends Screen {
             button.setMessage(priorityLabel());
         }).bounds(left, y, contentWidth, 20).build());
 
+        int doneWidth = Math.min(200, Math.max(1, width - 20));
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
-                .bounds(width / 2 - 100, height - 30, 200, 20).build());
+                .bounds((width - doneWidth) / 2, height - 30, doneWidth, 20).build());
         updateColorValidation();
     }
 

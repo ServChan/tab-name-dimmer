@@ -26,8 +26,8 @@ public class TabNameDimmerConfig {
     public static final int CURRENT_SCHEMA_VERSION = 2;
     public static final String GLOBAL_SCOPE = "global";
     public static final long MAX_TRANSFER_BYTES = 1024L * 1024L;
-    private static final int MAX_GROUPS = 32;
-    private static final int MAX_MEMBERS_PER_GROUP = 4096;
+    public static final int MAX_GROUPS = 32;
+    public static final int MAX_MEMBERS_PER_GROUP = 4096;
     private static final int MAX_TOTAL_MEMBERS_PER_PROFILE = 8192;
     private static final int MAX_SERVER_PROFILES = 128;
 
@@ -48,6 +48,10 @@ public class TabNameDimmerConfig {
         ORIGINAL, NAME, PING
     }
 
+    public enum AfkHandlingMode {
+        SHOW, MOVE_TO_END, HIDE
+    }
+
     public enum HudAnchor {
         TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT
     }
@@ -56,12 +60,15 @@ public class TabNameDimmerConfig {
     public boolean enabled = true;
     public boolean caseSensitive;
     public boolean notificationsEnabled = true;
+    public boolean compactNotifications;
+    public boolean notificationSoundsEnabled;
     public boolean playerTransparencyEnabled;
     public float dimOpacity = 0.3F;
     public int dimColor = 0x555555;
     public DisplayMode displayMode = DisplayMode.ANIMATED_SORT;
     public ActivationMode activationMode = ActivationMode.HOLD_SHIFT;
     public PlayerSortMode playerSortMode = PlayerSortMode.ORIGINAL;
+    public AfkHandlingMode afkHandlingMode = AfkHandlingMode.SHOW;
     public float animationSpeed = 0.05F;
     public HudAnchor hudAnchor = HudAnchor.BOTTOM_CENTER;
     public int hudColumns = 1;
@@ -90,8 +97,12 @@ public class TabNameDimmerConfig {
 
         public Profile copy() {
             Profile copy = new Profile(name);
-            for (PlayerGroup group : groups) {
-                copy.groups.add(group.copy());
+            if (groups != null) {
+                for (PlayerGroup group : groups) {
+                    if (group != null) {
+                        copy.groups.add(group.copy());
+                    }
+                }
             }
             return copy;
         }
@@ -123,7 +134,7 @@ public class TabNameDimmerConfig {
             copy.colorizeNames = colorizeNames;
             copy.glowingEnabled = glowingEnabled;
             copy.transparencyEnabled = transparencyEnabled;
-            copy.members = new ArrayList<>(members);
+            copy.members = members == null ? new ArrayList<>() : new ArrayList<>(members);
             return copy;
         }
 
@@ -174,11 +185,7 @@ public class TabNameDimmerConfig {
         try (Reader reader = Files.newBufferedReader(configPath)) {
             JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
             TabNameDimmerConfig loaded;
-            if (root.has("schemaVersion") && root.get("schemaVersion").getAsInt() >= CURRENT_SCHEMA_VERSION) {
-                loaded = GSON.fromJson(root, TabNameDimmerConfig.class);
-            } else {
-                loaded = migrateLegacy(GSON.fromJson(root, LegacyConfig.class));
-            }
+            loaded = parseConfig(root);
             instance = sanitize(loaded == null ? defaults() : loaded);
             lastModified = Files.getLastModifiedTime(configPath).toMillis();
         } catch (IOException | RuntimeException exception) {
@@ -215,7 +222,7 @@ public class TabNameDimmerConfig {
     }
 
     public static boolean save(TabNameDimmerConfig config) {
-        TabNameDimmerConfig sanitized = sanitize(config);
+        TabNameDimmerConfig sanitized = sanitize(config == null ? defaults() : config.copy());
         if (!writeJsonAtomically(configPath(), backupPath(), sanitized)) {
             return false;
         }
@@ -309,21 +316,30 @@ public class TabNameDimmerConfig {
         copy.enabled = enabled;
         copy.caseSensitive = caseSensitive;
         copy.notificationsEnabled = notificationsEnabled;
+        copy.compactNotifications = compactNotifications;
+        copy.notificationSoundsEnabled = notificationSoundsEnabled;
         copy.playerTransparencyEnabled = playerTransparencyEnabled;
         copy.dimOpacity = dimOpacity;
         copy.dimColor = dimColor;
         copy.displayMode = displayMode;
         copy.activationMode = activationMode;
         copy.playerSortMode = playerSortMode;
+        copy.afkHandlingMode = afkHandlingMode;
         copy.animationSpeed = animationSpeed;
         copy.hudAnchor = hudAnchor;
         copy.hudColumns = hudColumns;
         copy.hudMaxRows = hudMaxRows;
         copy.hudShowAvatars = hudShowAvatars;
         copy.hudShowPing = hudShowPing;
-        copy.globalProfile = globalProfile.copy();
+        copy.globalProfile = globalProfile == null ? Profile.defaultProfile() : globalProfile.copy();
         copy.serverProfiles = new LinkedHashMap<>();
-        serverProfiles.forEach((scope, profile) -> copy.serverProfiles.put(scope, profile.copy()));
+        if (serverProfiles != null) {
+            serverProfiles.forEach((scope, profile) -> {
+                if (profile != null) {
+                    copy.serverProfiles.put(scope, profile.copy());
+                }
+            });
+        }
         return copy;
     }
 
@@ -333,10 +349,21 @@ public class TabNameDimmerConfig {
 
     static TabNameDimmerConfig fromJsonForTests(String json) {
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
-        if (root.has("schemaVersion") && root.get("schemaVersion").getAsInt() >= CURRENT_SCHEMA_VERSION) {
-            return sanitize(GSON.fromJson(root, TabNameDimmerConfig.class));
+        return sanitize(parseConfig(root));
+    }
+
+    private static TabNameDimmerConfig parseConfig(JsonObject root) {
+        if (!root.has("schemaVersion")) {
+            return migrateLegacy(GSON.fromJson(root, LegacyConfig.class));
         }
-        return sanitize(migrateLegacy(GSON.fromJson(root, LegacyConfig.class)));
+        int schemaVersion = root.get("schemaVersion").getAsInt();
+        if (schemaVersion > CURRENT_SCHEMA_VERSION) {
+            throw new IllegalArgumentException("Unsupported future config schema version: " + schemaVersion);
+        }
+        if (schemaVersion < CURRENT_SCHEMA_VERSION) {
+            return migrateLegacy(GSON.fromJson(root, LegacyConfig.class));
+        }
+        return GSON.fromJson(root, TabNameDimmerConfig.class);
     }
 
     private static TabNameDimmerConfig migrateLegacy(LegacyConfig legacy) {
@@ -366,6 +393,7 @@ public class TabNameDimmerConfig {
         config.displayMode = config.displayMode == null ? DisplayMode.ANIMATED_SORT : config.displayMode;
         config.activationMode = config.activationMode == null ? ActivationMode.HOLD_SHIFT : config.activationMode;
         config.playerSortMode = config.playerSortMode == null ? PlayerSortMode.ORIGINAL : config.playerSortMode;
+        config.afkHandlingMode = config.afkHandlingMode == null ? AfkHandlingMode.SHOW : config.afkHandlingMode;
         config.hudAnchor = config.hudAnchor == null ? HudAnchor.BOTTOM_CENTER : config.hudAnchor;
         config.animationSpeed = clampFinite(config.animationSpeed, 0.05F, 0.001F, 1.0F);
         config.dimOpacity = clampFinite(config.dimOpacity, 0.3F, 0.05F, 1.0F);
@@ -478,9 +506,7 @@ public class TabNameDimmerConfig {
         }
         try (Reader reader = Files.newBufferedReader(backupPath)) {
             JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-            TabNameDimmerConfig recovered = root.has("schemaVersion")
-                    ? GSON.fromJson(root, TabNameDimmerConfig.class)
-                    : migrateLegacy(GSON.fromJson(root, LegacyConfig.class));
+            TabNameDimmerConfig recovered = parseConfig(root);
             recovered = sanitize(recovered);
             try {
                 if (Files.isRegularFile(configPath)) {

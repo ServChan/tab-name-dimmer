@@ -79,6 +79,43 @@ class TabNameDimmerConfigTest {
     }
 
     @Test
+    void copyPreservesNotificationOptions() {
+        TabNameDimmerConfig config = new TabNameDimmerConfig();
+        config.compactNotifications = true;
+        config.notificationSoundsEnabled = true;
+        config.afkHandlingMode = TabNameDimmerConfig.AfkHandlingMode.HIDE;
+
+        TabNameDimmerConfig copy = config.copy();
+
+        assertTrue(copy.compactNotifications);
+        assertTrue(copy.notificationSoundsEnabled);
+        assertEquals(TabNameDimmerConfig.AfkHandlingMode.HIDE, copy.afkHandlingMode);
+    }
+
+    @Test
+    void rejectsFutureSchemaInsteadOfSilentlyDowngradingIt() {
+        assertThrows(IllegalArgumentException.class,
+                () -> TabNameDimmerConfig.fromJsonForTests("{\"schemaVersion\":999}"));
+    }
+
+    @Test
+    void copiesMalformedProfilesWithoutCrashing() {
+        TabNameDimmerConfig.Profile profile = new TabNameDimmerConfig.Profile("Broken");
+        profile.groups = null;
+        TabNameDimmerConfig.PlayerGroup group = new TabNameDimmerConfig.PlayerGroup();
+        group.members = null;
+
+        assertTrue(profile.copy().groups.isEmpty());
+        assertTrue(group.copy().members.isEmpty());
+
+        TabNameDimmerConfig config = new TabNameDimmerConfig();
+        config.globalProfile = null;
+        config.serverProfiles = null;
+        assertNotNull(config.copy().globalProfile);
+        assertTrue(config.copy().serverProfiles.isEmpty());
+    }
+
+    @Test
     void exportsAndImportsCompleteProfile() {
         TabNameDimmerConfig.Profile profile = TabNameDimmerConfig.Profile.defaultProfile();
         profile.name = "Friends";

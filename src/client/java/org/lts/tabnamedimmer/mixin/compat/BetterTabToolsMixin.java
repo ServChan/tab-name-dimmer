@@ -33,6 +33,8 @@ public class BetterTabToolsMixin {
     @Inject(method = "getPlayerName", at = @At("RETURN"), cancellable = true)
     private static void tabNameDimmer$onGetPlayerName(PlayerInfo entry, CallbackInfoReturnable<Component> cir) {
         if (!TabNameDimmerClient.isActivationActive()) return;
+        if (entry == null || entry.getProfile() == null || entry.getProfile().name() == null) return;
         cir.setReturnValue(PlayerNameStyler.style(cir.getReturnValue(), entry.getProfile().name()));
     }
+
 }

@@ -16,35 +16,46 @@ Organizes players into global or per-server groups, dimming, filtering, sorting,
 
 ### Что дает мод
 
-- **Группировка игроков**: Разделение участников сервера по категориям с назначением цветовых тегов и префиксов.
+- **Группировка игроков**: Разделение участников сервера по категориям с отдельными цветами и приоритетами.
 - **Затемнение (Dimming)**: Приглушает яркость имён игроков, не входящих в ваш список отслеживания, позволяя мгновенно замечать важных игроков.
-- **4 режима отображения Tab**: Classic (ванильный с цветами), Compact, Grouped (с разделением по блокам групп) и Filtered (только отслеживаемые).
+- **3 режима отображения**: плавная сортировка списка Tab, фильтр только отслеживаемых игроков и отдельный настраиваемый HUD.
 - **Подсветка силуэтов в мире**: Выделяет соклановцев или союзников цветным свечением в пределах видимости.
 - **Разделение по серверам**: Индивидуальные списки групп для каждого сервера и глобальный список друзей.
+- **Уведомления**: полные или краткие сообщения `[+]/[-]`, а также отдельно включаемые звуки входа и выхода.
+- **AFK-фильтр**: серверные AFK-маркеры можно оставить как есть, переместить в конец списка или скрыть при активации мода. Ваниль показывает не более 80 записей, поэтому режим «В конец» при большом онлайне отдаёт видимые места активным игрокам.
 
 ### Особенности и архитектура
 
 - **Ограниченная карта сущностей (Bounded Map)**: Предотвращает утечки памяти на серверах с частой сменой игроков.
-- **0.0 ms задержка рендера Tab**: Оптимизированный проход отрисовки списка игроков без пересчёта форматирования каждый кадр.
+- **Без дискового I/O в рендере**: конфигурация обновляется на клиентском тике, а render-пути читают готовый снимок.
 - **Атомарное сохранение**: Настройки сохраняются в `config/tabnamedimmer.json` с защитой от повреждений.
 
 ### Управление
 
-- `Ctrl + Tab` — открыть быстрое меню назначения группы игроку;
-- Меню Mod Menu — подробная настройка цветов, групп и режимов затемнения.
+- Удерживайте `Shift` по умолчанию, чтобы активировать эффекты мода; режим можно сменить на удержание или переключение назначаемой клавиши (`Left Alt` по умолчанию).
+- Откройте настройки через Mod Menu, чтобы управлять цветами, группами, режимами, HUD и уведомлениями.
 
 ### Настройки (`config/tabnamedimmer.json`)
 
 ```json
 {
+  "schemaVersion": 2,
   "enabled": true,
-  "dimOpacity": 0.35,
-  "displayMode": "GROUPED",
-  "highlightWorldOutlines": true,
-  "groups": {
-    "allies": { "color": "0xFF55FF55", "priority": 1 },
-    "clan": { "color": "0xFF55FFFF", "priority": 2 },
-    "enemies": { "color": "0xFFFF5555", "priority": 3 }
+  "dimOpacity": 0.3,
+  "displayMode": "ANIMATED_SORT",
+  "activationMode": "HOLD_SHIFT",
+  "afkHandlingMode": "MOVE_TO_END",
+  "globalProfile": {
+    "name": "Global",
+    "groups": [
+      {
+        "name": "Friends",
+        "color": 5635925,
+        "priority": 10,
+        "enabled": true,
+        "members": ["PlayerName"]
+      }
+    ]
   }
 }
 ```
@@ -69,16 +80,18 @@ Organizes players into global or per-server groups, dimming, filtering, sorting,
 
 ### Key Features
 
-- **Player Group Categorization**: Assign custom group tags (allies, clanmates, rivals, staff) with colored labels.
+- **Player Group Categorization**: Assign custom groups (allies, clanmates, rivals, staff) with colors and priorities.
 - **Visual Dimming**: Softens untracked player names in crowded tab lists, bringing prioritized players to immediate focus.
-- **4 Tab Layout Modes**: Classic, Compact, Grouped, and Filtered.
+- **3 Display Modes**: animated Tab sorting, tracked-player filtering, and a configurable extra HUD.
 - **World Glowing Outlines**: Renders soft color-coded glowing halos around marked group members.
 - **Server Isolation**: Dedicated contact lists per server IP as well as global friend registries.
+- **Notifications**: full or compact `[+]/[-]` messages with independently configurable join/leave sounds.
+- **AFK Handling**: keep server-marked AFK players in place, move them behind active players, or hide them while the mod is active.
 
 ### Features
 
 - bounded entity tracking map automatically flushed on disconnects;
-- 0.0 ms Tab rendering overhead optimized for high player-count servers;
+- no configuration disk I/O in render paths; client ticks prepare the state consumed by rendering;
 - atomic configuration persistence with `.bak` recovery fallback.
 
 ### Build

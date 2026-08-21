@@ -43,7 +43,7 @@ final class GroupMembersScreen extends Screen {
 
     @Override
     protected void init() {
-        int contentWidth = Math.max(280, Math.min(560, width - 30));
+        int contentWidth = Math.min(560, Math.max(1, width - 20));
         int left = (width - contentWidth) / 2;
         int gap = 6;
         int buttonWidth = (contentWidth - gap) / 2;
@@ -69,8 +69,9 @@ final class GroupMembersScreen extends Screen {
         }
         memberList.ensureTrailingEmptyRow();
 
+        int doneWidth = Math.min(200, Math.max(1, width - 20));
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
-                .bounds(width / 2 - 100, height - 30, 200, 20).build());
+                .bounds((width - doneWidth) / 2, height - 30, doneWidth, 20).build());
     }
 
     @Override
@@ -87,6 +88,9 @@ final class GroupMembersScreen extends Screen {
     public boolean keyPressed(KeyEvent event) {
         if (event.key() == GLFW.GLFW_KEY_S && event.hasControlDown()) {
             saveMembers();
+            status = Component.translatable(TabNameDimmerConfig.save(config)
+                    ? "tabnamedimmer.toast.saved.description"
+                    : "tabnamedimmer.toast.save_failed").getString();
             return true;
         }
         return super.keyPressed(event);
@@ -204,6 +208,9 @@ final class GroupMembersScreen extends Screen {
             int before = merged.size();
             for (String line : imported) {
                 for (String raw : line.split("[,;]+")) {
+                    if (merged.size() >= TabNameDimmerConfig.MAX_MEMBERS_PER_GROUP) {
+                        break;
+                    }
                     String name = raw.strip().replace("\uFEFF", "");
                     if (!name.isBlank()) {
                         merged.putIfAbsent(key(name, caseSensitive), name);
@@ -217,7 +224,8 @@ final class GroupMembersScreen extends Screen {
         }
 
         void ensureTrailingEmptyRow() {
-            if (children().isEmpty() || !children().getLast().value().isBlank()) {
+            if (children().size() <= TabNameDimmerConfig.MAX_MEMBERS_PER_GROUP
+                    && (children().isEmpty() || !children().getLast().value().isBlank())) {
                 addName("");
             }
         }
@@ -228,6 +236,9 @@ final class GroupMembersScreen extends Screen {
                 String name = entry.value().trim();
                 if (!name.isBlank()) {
                     names.add(name);
+                    if (names.size() >= TabNameDimmerConfig.MAX_MEMBERS_PER_GROUP) {
+                        break;
+                    }
                 }
             }
             return names;

@@ -18,6 +18,7 @@ public class TabNameDimmerClient implements ClientModInitializer {
     private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(
             Identifier.fromNamespaceAndPath(MOD_ID, "main"));
     private static KeyMapping activationKey;
+    private static volatile boolean tabListOpen;
 
     @Override
     public void onInitializeClient() {
@@ -29,20 +30,23 @@ public class TabNameDimmerClient implements ClientModInitializer {
                 CATEGORY
         ));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            tabListOpen = client != null && client.options != null && client.options.keyPlayerList.isDown();
             TabNameDimmerConfig.pollForChanges();
             ServerScopeTracker.update(client);
             ActivationController.tick(client, activationKey);
-            LineOfSightCache.INSTANCE.clear();
+            LineOfSightCache.INSTANCE.refresh(client);
             OnlinePlayerTracker.INSTANCE.tick(client);
         });
         // Entity IDs are reassigned on every new connection; clear stale entries
         // so that wrong players are never made transparent after a reconnect.
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             PlayerTransparencyTracker.INSTANCE.clear();
+            LineOfSightCache.INSTANCE.clear();
             TabStateTracker.INSTANCE.clear();
             ServerScopeTracker.clear();
             ActivationController.reset();
             OnlinePlayerTracker.INSTANCE.clear();
+            tabListOpen = false;
         });
     }
 
@@ -58,11 +62,7 @@ public class TabNameDimmerClient implements ClientModInitializer {
     }
 
     public static boolean isTabListOpen() {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft == null || minecraft.options == null) {
-            return false;
-        }
-        return minecraft.options.keyPlayerList.isDown();
+        return tabListOpen;
     }
 
     public static boolean isActivationActive() {

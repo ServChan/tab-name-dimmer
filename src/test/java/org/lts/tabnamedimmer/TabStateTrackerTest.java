@@ -2,6 +2,9 @@ package org.lts.tabnamedimmer;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.scores.PlayerTeam;
+import net.minecraft.world.scores.Scoreboard;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -45,26 +48,105 @@ class TabStateTrackerTest {
         assertEquals(List.of("Fast", "Slow"), sorted);
     }
 
+    @Test
+    void movesAfkPlayersBehindActivePlayers() {
+        TabNameDimmerConfig config = trackedConfig();
+        config.afkHandlingMode = TabNameDimmerConfig.AfkHandlingMode.MOVE_TO_END;
+        PlayerTeam afkTeam = new Scoreboard().addPlayerTeam("afk");
+        afkTeam.setPlayerSuffix(Component.literal(" \uA423"));
+
+        List<PlayerInfo> players = List.of(
+                player("Sleeper", 20, null, afkTeam),
+                player("Active", 30, Component.literal("Active")));
+
+        List<String> sorted = TabStateTracker.sortedTrackedPlayers(
+                        players, config, TabNameDimmerConfig.GLOBAL_SCOPE)
+                .stream().map(info -> info.getProfile().name()).toList();
+
+        assertEquals(List.of("Active", "Sleeper"), sorted);
+    }
+
+    @Test
+    void hidesAfkPlayersWhenConfigured() {
+        TabNameDimmerConfig config = trackedConfig();
+        config.afkHandlingMode = TabNameDimmerConfig.AfkHandlingMode.HIDE;
+
+        List<PlayerInfo> players = List.of(
+                player("Sleeper", 20, Component.literal("Sleeper [AFK]")),
+                player("Active", 30, Component.literal("Active")));
+
+        List<String> sorted = TabStateTracker.sortedTrackedPlayers(
+                        players, config, TabNameDimmerConfig.GLOBAL_SCOPE)
+                .stream().map(info -> info.getProfile().name()).toList();
+
+        assertEquals(List.of("Active"), sorted);
+    }
+
+    @Test
+    void hidesVanillaSquadAfkPlayerWhenDisplayNameDiffersFromAccountName() {
+        TabNameDimmerConfig config = new TabNameDimmerConfig();
+        config.afkHandlingMode = TabNameDimmerConfig.AfkHandlingMode.HIDE;
+        config.globalProfile.groups.getFirst().members.addAll(List.of("Aell_", "Active"));
+
+        List<PlayerInfo> players = List.of(
+                player("Aell_", 20, Component.literal("Aell \uA423")),
+                player("Active", 30, Component.literal("Active")));
+
+        List<String> sorted = TabStateTracker.sortedTrackedPlayers(
+                        players, config, TabNameDimmerConfig.GLOBAL_SCOPE)
+                .stream().map(info -> info.getProfile().name()).toList();
+
+        assertEquals(List.of("Active"), sorted);
+    }
+
+    private static TabNameDimmerConfig trackedConfig() {
+        TabNameDimmerConfig config = new TabNameDimmerConfig();
+        config.globalProfile.groups.getFirst().members.addAll(List.of("Sleeper", "Active"));
+        return config;
+    }
+
     private static PlayerInfo player(String name) {
         return player(name, 0);
     }
 
     private static PlayerInfo player(String name, int latency) {
+        return player(name, latency, null);
+    }
+
+    private static PlayerInfo player(String name, int latency, Component displayName) {
+        return player(name, latency, displayName, null);
+    }
+
+    private static PlayerInfo player(String name, int latency, Component displayName, PlayerTeam team) {
         return new TestPlayerInfo(new GameProfile(
-                UUID.nameUUIDFromBytes(name.getBytes(StandardCharsets.UTF_8)), name), latency);
+                UUID.nameUUIDFromBytes(name.getBytes(StandardCharsets.UTF_8)), name), latency, displayName, team);
     }
 
     private static final class TestPlayerInfo extends PlayerInfo {
         private final int latency;
+        private final Component displayName;
+        private final PlayerTeam team;
 
-        private TestPlayerInfo(GameProfile profile, int latency) {
+        private TestPlayerInfo(GameProfile profile, int latency, Component displayName, PlayerTeam team) {
             super(profile, false);
             this.latency = latency;
+            this.displayName = displayName;
+            this.team = team;
         }
 
         @Override
         public int getLatency() {
             return latency;
+        }
+
+        @Override
+        public Component getTabListDisplayName() {
+            return displayName;
+        }
+
+        @Override
+        public PlayerTeam getTeam() {
+            return team;
         }
     }
 }

@@ -18,7 +18,7 @@ final class HudSettingsScreen extends Screen {
 
     @Override
     protected void init() {
-        int width = Math.max(260, Math.min(420, this.width - 40));
+        int width = Math.min(420, Math.max(1, this.width - 20));
         int left = (this.width - width) / 2;
         int y = 48;
         addRenderableWidget(Button.builder(anchorLabel(), button -> {
@@ -55,8 +55,9 @@ final class HudSettingsScreen extends Screen {
             button.setMessage(pingLabel());
         }).bounds(left, y, width, 20).build());
 
+        int doneWidth = Math.min(200, Math.max(1, this.width - 20));
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
-                .bounds(this.width / 2 - 100, this.height - 30, 200, 20).build());
+                .bounds((this.width - doneWidth) / 2, this.height - 30, doneWidth, 20).build());
     }
 
     @Override

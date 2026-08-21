@@ -137,9 +137,10 @@ tasks.register("verifyVersionSync") {
         if (!metadata.contains('\"version\": \"${version}\"')) {
             throw new GradleException("fabric.mod.json must use the Gradle version placeholder")
         }
-        if (!readme.contains("version-${expected}-")
-                || !readme.contains("Текущая версия мода в проекте: `${expected}`")
-                || !readme.contains("Current project mod version: `${expected}`")) {
+        def badgeVersion = java.util.regex.Pattern.quote("Version-${expected}-")
+        def artifactVersion = java.util.regex.Pattern.quote("tab-name-dimmer-${expected}.jar")
+        if (!(readme =~ /(?i)${badgeVersion}/).find()
+                || !(readme =~ /${artifactVersion}/).find()) {
             throw new GradleException("README.md is not synchronized with mod_version=${expected}")
         }
     }
@@ -170,6 +171,7 @@ tasks.register("verifyTranslationUsage") {
                 "tabnamedimmer.activation.hold_shift", "tabnamedimmer.activation.hold_key", "tabnamedimmer.activation.toggle_key",
                 "tabnamedimmer.mode.animated_sort", "tabnamedimmer.mode.filter", "tabnamedimmer.mode.extra_hud",
                 "tabnamedimmer.sort.original", "tabnamedimmer.sort.name", "tabnamedimmer.sort.ping",
+                "tabnamedimmer.afk.show", "tabnamedimmer.afk.move_to_end", "tabnamedimmer.afk.hide",
                 "tabnamedimmer.hud_anchor.top_left", "tabnamedimmer.hud_anchor.top_right",
                 "tabnamedimmer.hud_anchor.bottom_left", "tabnamedimmer.hud_anchor.bottom_center", "tabnamedimmer.hud_anchor.bottom_right"
         ])

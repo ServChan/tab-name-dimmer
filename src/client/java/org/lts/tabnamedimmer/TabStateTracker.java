@@ -28,24 +28,35 @@ public class TabStateTracker {
 
         String scope = ServerScopeTracker.currentScope();
         boolean active = TabNameDimmerClient.isActivationActive();
+        Map<PlayerInfo, Boolean> afkPlayers = afkPlayers(original, config);
+        List<PlayerInfo> candidates = config.afkHandlingMode == TabNameDimmerConfig.AfkHandlingMode.HIDE
+                ? original.stream().filter(info -> !afkPlayers.getOrDefault(info, false)).toList()
+                : original;
         Map<PlayerInfo, TabNameDimmerConfig.Match> matches = new IdentityHashMap<>();
-        for (PlayerInfo info : original) {
+        for (PlayerInfo info : candidates) {
             matches.put(info, config.findMatch(info.getProfile().name(), scope));
         }
 
         Comparator<PlayerInfo> groupedComparator = groupedComparator(config, original, matches);
+        Map<PlayerInfo, Integer> originalIndexes = indexMap(original);
+        Comparator<PlayerInfo> originalOrder = Comparator.comparingInt(originalIndexes::get);
+        Comparator<PlayerInfo> activeComparator = withAfkLast(groupedComparator, afkPlayers, config);
+        Comparator<PlayerInfo> inactiveComparator = withAfkLast(originalOrder, afkPlayers, config);
         if (config.displayMode == TabNameDimmerConfig.DisplayMode.FILTER && active) {
-            return original.stream().filter(info -> matches.get(info) != null).sorted(groupedComparator);
+            return candidates.stream().filter(info -> matches.get(info) != null).sorted(activeComparator);
         }
 
         if (config.displayMode != TabNameDimmerConfig.DisplayMode.ANIMATED_SORT) {
             displayWeights.clear();
-            return original.stream();
+            if (config.afkHandlingMode == TabNameDimmerConfig.AfkHandlingMode.MOVE_TO_END) {
+                return candidates.stream().sorted(inactiveComparator);
+            }
+            return candidates.stream();
         }
 
         List<PlayerInfo> desired = active
-                ? original.stream().sorted(groupedComparator).toList()
-                : original;
+                ? candidates.stream().sorted(activeComparator).toList()
+                : candidates.stream().sorted(inactiveComparator).toList();
         Map<UUID, Integer> targets = new HashMap<>();
         for (int i = 0; i < desired.size(); i++) {
             targets.put(desired.get(i).getProfile().id(), i);
@@ -58,8 +69,8 @@ public class TabStateTracker {
         float fraction = Math.min(1.0F, config.animationSpeed * 600.0F * dt);
 
         displayWeights.keySet().retainAll(targets.keySet());
-        for (int i = 0; i < original.size(); i++) {
-            PlayerInfo info = original.get(i);
+        for (int i = 0; i < candidates.size(); i++) {
+            PlayerInfo info = candidates.get(i);
             UUID uuid = info.getProfile().id();
             float target = targets.getOrDefault(uuid, i);
             float current = displayWeights.getOrDefault(uuid, (float) i);
@@ -68,8 +79,7 @@ public class TabStateTracker {
             displayWeights.put(uuid, current);
         }
 
-        Map<PlayerInfo, Integer> originalIndexes = indexMap(original);
-        return original.stream().sorted(Comparator
+        return candidates.stream().sorted(Comparator
                 .comparingDouble((PlayerInfo info) -> displayWeights.getOrDefault(info.getProfile().id(), 0.0F))
                 .thenComparingInt(originalIndexes::get));
     }
@@ -97,14 +107,38 @@ public class TabStateTracker {
                                                         TabNameDimmerConfig config,
                                                         String scope) {
         List<PlayerInfo> original = List.copyOf(players);
+        Map<PlayerInfo, Boolean> afkPlayers = afkPlayers(original, config);
         Map<PlayerInfo, TabNameDimmerConfig.Match> matches = new IdentityHashMap<>();
         for (PlayerInfo info : original) {
             matches.put(info, config.findMatch(info.getProfile().name(), scope));
         }
         return original.stream()
                 .filter(info -> matches.get(info) != null)
-                .sorted(groupedComparator(config, original, matches))
+                .filter(info -> config.afkHandlingMode != TabNameDimmerConfig.AfkHandlingMode.HIDE
+                        || !afkPlayers.getOrDefault(info, false))
+                .sorted(withAfkLast(groupedComparator(config, original, matches), afkPlayers, config))
                 .toList();
+    }
+
+    private static Map<PlayerInfo, Boolean> afkPlayers(List<PlayerInfo> players,
+                                                        TabNameDimmerConfig config) {
+        Map<PlayerInfo, Boolean> afkPlayers = new IdentityHashMap<>();
+        if (config.afkHandlingMode != TabNameDimmerConfig.AfkHandlingMode.SHOW) {
+            for (PlayerInfo info : players) {
+                afkPlayers.put(info, AfkDetector.isAfk(info));
+            }
+        }
+        return afkPlayers;
+    }
+
+    private static Comparator<PlayerInfo> withAfkLast(Comparator<PlayerInfo> comparator,
+                                                       Map<PlayerInfo, Boolean> afkPlayers,
+                                                       TabNameDimmerConfig config) {
+        if (config.afkHandlingMode != TabNameDimmerConfig.AfkHandlingMode.MOVE_TO_END) {
+            return comparator;
+        }
+        return Comparator.comparing((PlayerInfo info) -> afkPlayers.getOrDefault(info, false))
+                .thenComparing(comparator);
     }
 
     private static Map<PlayerInfo, Integer> indexMap(List<PlayerInfo> players) {

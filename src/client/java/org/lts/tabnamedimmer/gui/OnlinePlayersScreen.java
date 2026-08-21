@@ -25,18 +25,21 @@ final class OnlinePlayersScreen extends Screen {
 
     @Override
     protected void init() {
-        int contentWidth = Math.max(280, Math.min(520, width - 40));
+        int contentWidth = Math.min(520, Math.max(1, width - 20));
         int left = (width - contentWidth) / 2;
         int top = 38;
         OnlineList list = new OnlineList(left, top, contentWidth, Math.max(30, height - top - 42));
         addRenderableWidget(list);
         if (minecraft.getConnection() != null) {
             minecraft.getConnection().getListedOnlinePlayers().stream()
+                    .filter(info -> info != null && info.getProfile() != null
+                            && info.getProfile().name() != null && !info.getProfile().name().isBlank())
                     .sorted(java.util.Comparator.comparing(info -> info.getProfile().name(), String.CASE_INSENSITIVE_ORDER))
                     .forEach(info -> list.addEntryPublic(new OnlineEntry(info, contentWidth)));
         }
+        int doneWidth = Math.min(200, Math.max(1, width - 20));
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
-                .bounds(width / 2 - 100, height - 30, 200, 20).build());
+                .bounds((width - doneWidth) / 2, height - 30, doneWidth, 20).build());
     }
 
     @Override
@@ -93,7 +96,7 @@ final class OnlinePlayersScreen extends Screen {
                 if (contains(name)) {
                     String key = normalize(name);
                     group.members.removeIf(member -> normalize(member).equals(key));
-                } else {
+                } else if (group.members.size() < TabNameDimmerConfig.MAX_MEMBERS_PER_GROUP) {
                     group.members.add(name);
                 }
                 button.setMessage(toggleLabel());

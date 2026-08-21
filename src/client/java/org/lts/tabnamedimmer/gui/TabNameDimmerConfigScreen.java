@@ -35,7 +35,7 @@ public class TabNameDimmerConfigScreen extends Screen {
 
     @Override
     protected void init() {
-        int contentWidth = Math.max(260, Math.min(520, width - 40));
+        int contentWidth = Math.min(520, Math.max(1, width - 20));
         int left = (width - contentWidth) / 2;
         int gap = 8;
         int columnWidth = (contentWidth - gap) / 2;
@@ -75,6 +75,17 @@ public class TabNameDimmerConfigScreen extends Screen {
         y += 24;
 
         addPair(left, y, columnWidth, gap,
+                Button.builder(compactNotificationsLabel(), button -> {
+                    config.compactNotifications = !config.compactNotifications;
+                    button.setMessage(compactNotificationsLabel());
+                }).build(),
+                Button.builder(notificationSoundsLabel(), button -> {
+                    config.notificationSoundsEnabled = !config.notificationSoundsEnabled;
+                    button.setMessage(notificationSoundsLabel());
+                }).build());
+        y += 24;
+
+        addPair(left, y, columnWidth, gap,
                 Button.builder(opacityLabel(), button -> {
                     config.dimOpacity = nextPreset(config.dimOpacity, OPACITY_PRESETS);
                     button.setMessage(opacityLabel());
@@ -90,20 +101,25 @@ public class TabNameDimmerConfigScreen extends Screen {
                     config.playerSortMode = next(config.playerSortMode, TabNameDimmerConfig.PlayerSortMode.values());
                     button.setMessage(sortLabel());
                 }).build(),
-                Button.builder(Component.translatable("tabnamedimmer.button.hud_settings"), button ->
-                        ScreenNavigator.show(minecraft, new HudSettingsScreen(this, config))).build());
+                Button.builder(afkHandlingLabel(), button -> {
+                    config.afkHandlingMode = next(config.afkHandlingMode, TabNameDimmerConfig.AfkHandlingMode.values());
+                    button.setMessage(afkHandlingLabel());
+                }).build());
         y += 24;
 
-        Button groups = Button.builder(Component.translatable("tabnamedimmer.button.manage_groups"), button ->
-                        ScreenNavigator.show(minecraft, new GroupManagerScreen(this, config, ServerScopeTracker.currentScope())))
-                .bounds(left, y, contentWidth, FIELD_HEIGHT).build();
-        addRenderableWidget(groups);
+        addPair(left, y, columnWidth, gap,
+                Button.builder(Component.translatable("tabnamedimmer.button.manage_groups"), button ->
+                        ScreenNavigator.show(minecraft, new GroupManagerScreen(this, config,
+                                ServerScopeTracker.currentScope()))).build(),
+                Button.builder(Component.translatable("tabnamedimmer.button.hud_settings"), button ->
+                        ScreenNavigator.show(minecraft, new HudSettingsScreen(this, config))).build());
 
         int bottom = height - 30;
+        int actionWidth = (contentWidth - gap) / 2;
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.save"), button -> saveAndClose())
-                .bounds(width / 2 - 155, bottom, 150, FIELD_HEIGHT).build());
+                .bounds(left, bottom, actionWidth, FIELD_HEIGHT).build());
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.cancel"), button -> closeWithoutSaving())
-                .bounds(width / 2 + 5, bottom, 150, FIELD_HEIGHT).build());
+                .bounds(left + actionWidth + gap, bottom, actionWidth, FIELD_HEIGHT).build());
     }
 
     private void addPair(int left, int y, int width, int gap, Button first, Button second) {
@@ -186,6 +202,14 @@ public class TabNameDimmerConfigScreen extends Screen {
         return Component.translatable("tabnamedimmer.option.notifications", onOff(config.notificationsEnabled));
     }
 
+    private Component compactNotificationsLabel() {
+        return Component.translatable("tabnamedimmer.option.compact_notifications", onOff(config.compactNotifications));
+    }
+
+    private Component notificationSoundsLabel() {
+        return Component.translatable("tabnamedimmer.option.notification_sounds", onOff(config.notificationSoundsEnabled));
+    }
+
     private Component transparencyLabel() {
         return Component.translatable("tabnamedimmer.option.player_transparency", onOff(config.playerTransparencyEnabled));
     }
@@ -204,6 +228,11 @@ public class TabNameDimmerConfigScreen extends Screen {
     private Component sortLabel() {
         return Component.translatable("tabnamedimmer.option.player_sort",
                 Component.translatable("tabnamedimmer.sort." + enumKey(config.playerSortMode)));
+    }
+
+    private Component afkHandlingLabel() {
+        return Component.translatable("tabnamedimmer.option.afk_handling",
+                Component.translatable("tabnamedimmer.afk." + enumKey(config.afkHandlingMode)));
     }
 
     static Component onOff(boolean value) {

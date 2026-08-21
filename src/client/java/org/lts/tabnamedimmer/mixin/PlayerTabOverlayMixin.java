@@ -1,5 +1,6 @@
 package org.lts.tabnamedimmer.mixin;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.client.gui.components.PlayerTabOverlay;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.gui.components.PlayerFaceExtractor;
@@ -12,17 +13,19 @@ import org.lts.tabnamedimmer.TabStateTracker;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(PlayerTabOverlay.class)
 public class PlayerTabOverlayMixin {
-    @Inject(method = "getNameForDisplay", at = @At("RETURN"), cancellable = true)
-    private void tabnamedimmer$dimUnlistedName(PlayerInfo playerInfo, CallbackInfoReturnable<Component> callbackInfo) {
+    @ModifyReturnValue(method = "getNameForDisplay", at = @At("RETURN"))
+    private Component tabnamedimmer$dimUnlistedName(Component original, PlayerInfo playerInfo) {
         if (!TabNameDimmerClient.isActivationActive()) {
-            return;
+            return original;
+        }
+        if (playerInfo == null || playerInfo.getProfile() == null || playerInfo.getProfile().name() == null) {
+            return original;
         }
         String playerName = playerInfo.getProfile().name();
-        callbackInfo.setReturnValue(PlayerNameStyler.style(callbackInfo.getReturnValue(), playerName));
+        return PlayerNameStyler.style(original, playerName);
     }
 
     @Inject(method = "extractRenderState", at = @At("RETURN"))
@@ -35,32 +38,35 @@ public class PlayerTabOverlayMixin {
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
         if (mc.player == null || mc.player.connection == null) return;
 
+        String scope = ServerScopeTracker.currentScope();
         java.util.List<PlayerInfo> whitelisted = TabStateTracker.sortedTrackedPlayers(
-                mc.player.connection.getListedOnlinePlayers(), config, ServerScopeTracker.currentScope());
+                mc.player.connection.getListedOnlinePlayers(), config, scope);
 
         if (whitelisted.isEmpty()) return;
 
         int padding = 5;
+        int margin = 8;
+        int columnGap = 8;
         int avatarSize = config.hudShowAvatars ? 8 : 0;
         int avatarGap = config.hudShowAvatars ? 3 : 0;
         int guiHeight = mc.getWindow().getGuiScaledHeight();
-        int columns = Math.min(config.hudColumns, whitelisted.size());
-        int rowsByHeight = Math.max(1, (guiHeight - 50 - padding * 2) / 10);
-        int maxEntries = Math.min(config.hudMaxRows, rowsByHeight) * columns;
-        if (whitelisted.size() > maxEntries) {
-            whitelisted = whitelisted.subList(0, maxEntries);
-        }
-        int rows = (whitelisted.size() + columns - 1) / columns;
         net.minecraft.client.gui.Font font = mc.font;
         int cellWidth = 0;
         for (PlayerInfo p : whitelisted) {
             int pingWidth = config.hudShowPing ? font.width(p.getLatency() + " ms") + 6 : 0;
             cellWidth = Math.max(cellWidth, avatarSize + avatarGap + font.width(p.getProfile().name()) + pingWidth);
         }
-        int columnGap = 8;
+        int availableContentWidth = Math.max(1, width - margin * 2 - padding * 2);
+        int columnsByWidth = Math.max(1, (availableContentWidth + columnGap) / Math.max(1, cellWidth + columnGap));
+        int columns = Math.min(Math.min(config.hudColumns, whitelisted.size()), columnsByWidth);
+        int rowsByHeight = Math.max(1, (guiHeight - 50 - padding * 2) / 10);
+        int maxEntries = Math.min(config.hudMaxRows, rowsByHeight) * columns;
+        if (whitelisted.size() > maxEntries) {
+            whitelisted = whitelisted.subList(0, maxEntries);
+        }
+        int rows = (whitelisted.size() + columns - 1) / columns;
         int boxWidth = cellWidth * columns + columnGap * (columns - 1) + padding * 2;
         int boxHeight = rows * 10 + padding * 2;
-        int margin = 8;
         int x = switch (config.hudAnchor) {
             case TOP_LEFT, BOTTOM_LEFT -> margin;
             case TOP_RIGHT, BOTTOM_RIGHT -> width - boxWidth - margin;
@@ -82,7 +88,7 @@ public class PlayerTabOverlayMixin {
                 PlayerFaceExtractor.extractRenderState(graphics, info.getSkin(), cellX, cellY, avatarSize);
             }
             int textX = cellX + avatarSize + avatarGap;
-            TabNameDimmerConfig.Match match = config.findMatch(info.getProfile().name(), ServerScopeTracker.currentScope());
+            TabNameDimmerConfig.Match match = config.findMatch(info.getProfile().name(), scope);
             int nameColor = match == null ? 0xFFFFFF : match.group().color;
             graphics.text(font, Component.literal(info.getProfile().name()), textX, cellY, 0xFF000000 | nameColor);
             if (config.hudShowPing) {
