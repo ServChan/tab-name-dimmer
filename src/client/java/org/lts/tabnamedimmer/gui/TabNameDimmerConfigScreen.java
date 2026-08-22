@@ -131,10 +131,16 @@ public class TabNameDimmerConfigScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
-        graphics.fill(0, 0, width, height, 0xF010141C);
-        graphics.centeredText(font, title, width / 2, 16, 0xFFFFFFFF);
+        graphics.fill(0, 0, width, height, 0xF00D141F);
+
+        // Header Panel
+        graphics.fill(0, 0, width, 28, 0xFF182638);
+        graphics.fill(0, 27, width, 28, 0xFF2E435E);
+        int titleX = (width - font.width(title)) / 2;
+        graphics.text(font, title, titleX, 9, 0xFFFFFFFF, true);
+
         graphics.centeredText(font, Component.translatable("tabnamedimmer.activation.key_hint"),
-                width / 2, height - 44, 0xFF8F9AA8);
+                width / 2, height - 44, 0xFF00E5FF);
         super.extractRenderState(graphics, mouseX, mouseY, tickDelta);
     }
 
@@ -236,7 +242,8 @@ public class TabNameDimmerConfigScreen extends Screen {
     }
 
     static Component onOff(boolean value) {
-        return Component.translatable(value ? "tabnamedimmer.state.on" : "tabnamedimmer.state.off");
+        return Component.translatable(value ? "tabnamedimmer.state.on" : "tabnamedimmer.state.off")
+                .withStyle(style -> style.withColor(value ? 0xFF55FF55 : 0xFFFF5555));
     }
 
     static String enumKey(Enum<?> value) {
