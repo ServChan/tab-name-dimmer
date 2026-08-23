@@ -62,8 +62,12 @@ final class HudSettingsScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
-        graphics.fill(0, 0, width, height, 0xF010141C);
-        graphics.centeredText(font, title, width / 2, 16, 0xFFFFFFFF);
+        graphics.fill(0, 0, width, height, 0xF00D141F);
+
+        // Header bar
+        graphics.fill(0, 0, width, 28, 0xFF182638);
+        graphics.fill(0, 27, width, 28, 0xFF2E435E);
+        graphics.centeredText(font, title, width / 2, 9, 0xFFFFFFFF);
         super.extractRenderState(graphics, mouseX, mouseY, tickDelta);
     }
 
