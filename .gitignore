@@ -12,7 +12,7 @@ classes/
 # Minecraft run directories, configs & logs
 run/
 runs/
-config/
+/config/
 logs/
 crash-reports/
 *.log
