@@ -118,8 +118,8 @@ public class TabNameDimmerConfig {
         public boolean transparencyEnabled;
         public List<String> members = new ArrayList<>();
 
-        private transient Set<String> normalizedMembers;
-        private transient boolean normalizedCaseSensitive;
+        private transient volatile Set<String> normalizedMembers;
+        private transient volatile boolean normalizedCaseSensitive;
 
         public static PlayerGroup defaultGroup() {
             return new PlayerGroup();
@@ -139,14 +139,19 @@ public class TabNameDimmerConfig {
         }
 
         private boolean contains(String playerName, boolean caseSensitive) {
-            if (normalizedMembers == null || normalizedCaseSensitive != caseSensitive) {
-                normalizedMembers = new LinkedHashSet<>();
-                normalizedCaseSensitive = caseSensitive;
+            Set<String> cache = normalizedMembers;
+            if (cache == null || normalizedCaseSensitive != caseSensitive) {
+                // Build into a private set and publish it only once fully populated;
+                // findMatch runs from both the client tick and render paths, and a
+                // reader must never observe a half-filled cache.
+                cache = new LinkedHashSet<>();
                 for (String member : members) {
-                    normalizedMembers.add(normalizeName(member, caseSensitive));
+                    cache.add(normalizeName(member, caseSensitive));
                 }
+                normalizedCaseSensitive = caseSensitive;
+                normalizedMembers = cache;
             }
-            return normalizedMembers.contains(normalizeName(playerName, caseSensitive));
+            return cache.contains(normalizeName(playerName, caseSensitive));
         }
 
         private void invalidateCache() {

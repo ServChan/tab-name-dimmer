@@ -84,13 +84,18 @@ public final class AfkDetector {
         if (visibleName.contains(VANILLASQUAD_SLEEP_ICON)) {
             return true;
         }
-        int accountNameStart = visibleName.toLowerCase(Locale.ROOT)
-                .indexOf(playerName.toLowerCase(Locale.ROOT));
+        // Work entirely on the lower-cased text: some code points (for example
+        // U+0130) change length when lower-cased, so an index taken from the
+        // lower-cased string must not be used to slice the original string or it
+        // can run past its end and throw.
+        String lowerVisible = visibleName.toLowerCase(Locale.ROOT);
+        String lowerName = playerName.toLowerCase(Locale.ROOT);
+        int accountNameStart = lowerVisible.indexOf(lowerName);
         if (accountNameStart < 0) {
             return false;
         }
-        String prefix = visibleName.substring(0, accountNameStart);
-        String suffix = visibleName.substring(accountNameStart + playerName.length());
+        String prefix = lowerVisible.substring(0, accountNameStart);
+        String suffix = lowerVisible.substring(accountNameStart + lowerName.length());
         if (EXPLICIT_MARKER.matcher(suffix).find() || PREFIX_MARKER.matcher(prefix).find()
                 || suffix.contains("💤") || prefix.stripTrailing().endsWith("💤")) {
             return true;

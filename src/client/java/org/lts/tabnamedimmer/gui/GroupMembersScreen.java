@@ -266,8 +266,8 @@ final class GroupMembersScreen extends Screen {
             this.list = list;
             field = new EditBox(font, 0, 0, list.rowWidth - 12, 20,
                     Component.translatable("tabnamedimmer.hint.allowed_names"));
-            field.setValue(value);
             field.setMaxLength(64);
+            field.setValue(value);
             field.setHint(Component.translatable("tabnamedimmer.hint.allowed_names"));
             field.setResponder(ignored -> list.ensureTrailingEmptyRow());
         }
