@@ -8,7 +8,6 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +24,7 @@ public class TabNameDimmerClient implements ClientModInitializer {
         TabNameDimmerConfig.load();
         activationKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.tabnamedimmer.activate",
-                InputConstants.Type.KEYSYM,
+                InputConstants.Type.KEYBOARD,
                 InputConstants.KEY_LALT,
                 CATEGORY
         ));
@@ -37,8 +36,7 @@ public class TabNameDimmerClient implements ClientModInitializer {
             LineOfSightCache.INSTANCE.refresh(client);
             OnlinePlayerTracker.INSTANCE.tick(client);
         });
-        // Entity IDs are reassigned on every new connection; clear stale entries
-        // so that wrong players are never made transparent after a reconnect.
+
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             PlayerTransparencyTracker.INSTANCE.clear();
             LineOfSightCache.INSTANCE.clear();
@@ -56,9 +54,8 @@ public class TabNameDimmerClient implements ClientModInitializer {
             return false;
         }
 
-        long window = minecraft.getWindow().handle();
-        return GLFW.glfwGetKey(window, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
-                || GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+        return InputConstants.isKeyDown(InputConstants.KEY_LSHIFT)
+                || InputConstants.isKeyDown(InputConstants.KEY_RSHIFT);
     }
 
     public static boolean isTabListOpen() {

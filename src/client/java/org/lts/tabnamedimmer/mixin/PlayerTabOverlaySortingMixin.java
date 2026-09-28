@@ -16,7 +16,7 @@ public class PlayerTabOverlaySortingMixin {
     @WrapOperation(method = "getPlayerInfos", at = @At(value = "INVOKE", target = "Ljava/util/stream/Stream;sorted(Ljava/util/Comparator;)Ljava/util/stream/Stream;"))
     private Stream<PlayerInfo> tabnamedimmer$customSort(Stream<PlayerInfo> stream, Comparator<? super PlayerInfo> originalComparator, Operation<Stream<PlayerInfo>> original) {
         Stream<PlayerInfo> originallySorted = original.call(stream, originalComparator);
-        // Preserve the output of the vanilla call and any other WrapOperation in the chain.
+
         return TabStateTracker.INSTANCE.processPlayers(originallySorted, (left, right) -> 0);
     }
 }

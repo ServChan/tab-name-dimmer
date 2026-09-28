@@ -15,9 +15,8 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Detects server-provided AFK markers without treating the account name itself as a marker. */
 public final class AfkDetector {
-    /** VanillaSquad's resource-pack glyph for the small sleeping/zzz icon. */
+
     private static final String VANILLASQUAD_SLEEP_ICON = "\uA423";
     private static final Pattern EXPLICIT_MARKER = Pattern.compile(
             "(?iu)(?:^|[^\\p{L}\\p{N}_])(?:afk|away)(?:$|[^\\p{L}\\p{N}_])");
@@ -78,16 +77,11 @@ public final class AfkDetector {
         }
 
         String visibleName = displayName.getString();
-        // This resource-pack glyph has one unambiguous meaning on VanillaSquad.
-        // Check it before looking for the account name: the server may replace or
-        // decorate that name so the literal GameProfile name is no longer present.
+
         if (visibleName.contains(VANILLASQUAD_SLEEP_ICON)) {
             return true;
         }
-        // Work entirely on the lower-cased text: some code points (for example
-        // U+0130) change length when lower-cased, so an index taken from the
-        // lower-cased string must not be used to slice the original string or it
-        // can run past its end and throw.
+
         String lowerVisible = visibleName.toLowerCase(Locale.ROOT);
         String lowerName = playerName.toLowerCase(Locale.ROOT);
         int accountNameStart = lowerVisible.indexOf(lowerName);

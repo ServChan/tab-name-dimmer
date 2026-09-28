@@ -15,7 +15,6 @@ public final class LineOfSightCache {
     private LineOfSightCache() {
     }
 
-    /** Refreshes visibility on the client tick thread; render workers only read the snapshot. */
     public void refresh(Minecraft minecraft) {
         values.clear();
         localPlayerId = Integer.MIN_VALUE;

@@ -159,15 +159,14 @@ class OnlinePlayerTrackerTest {
 
     @Test
     void respectsGroupColorizationToggle() {
-        // Group colorizeNames = true
+
         TabNameDimmerConfig.PlayerGroup group = config.globalProfile.groups.getFirst();
         group.colorizeNames = true;
-        group.color = 0xFF5555; // Red
+        group.color = 0xFF5555;
 
         Component styledWithModColor = OnlinePlayerTracker.formatPlayerName("TrackedUser", null, config, SCOPE);
         assertNotNull(styledWithModColor.getStyle().getColor());
 
-        // Group colorizeNames = false
         group.colorizeNames = false;
         Component serverCustomName = Component.literal("[VIP] TrackedUser");
         Component styledWithServerColor = OnlinePlayerTracker.formatPlayerName("TrackedUser", serverCustomName, config, SCOPE);

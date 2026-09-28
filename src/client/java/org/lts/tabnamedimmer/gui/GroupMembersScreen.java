@@ -1,5 +1,6 @@
 package org.lts.tabnamedimmer.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
@@ -7,8 +8,6 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import org.lts.tabnamedimmer.TabNameDimmerClient;
 import org.lts.tabnamedimmer.TabNameDimmerConfig;
 
@@ -21,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 
 final class GroupMembersScreen extends Screen {
     private static final int ROW_HEIGHT = 26;
@@ -78,7 +78,6 @@ final class GroupMembersScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
         graphics.fill(0, 0, width, height, 0xF00D141F);
 
-        // Header bar
         graphics.fill(0, 0, width, 28, 0xFF182638);
         graphics.fill(0, 27, width, 28, 0xFF2E435E);
         graphics.centeredText(font, title, width / 2, 9, 0xFFFFFFFF);
@@ -90,7 +89,7 @@ final class GroupMembersScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (event.key() == GLFW.GLFW_KEY_S && event.hasControlDown()) {
+        if (event.key() == InputConstants.KEY_S && event.hasControlDown()) {
             saveMembers();
             status = Component.translatable(TabNameDimmerConfig.save(config)
                     ? "tabnamedimmer.toast.saved.description"
@@ -115,7 +114,10 @@ final class GroupMembersScreen extends Screen {
     }
 
     private void importText() {
-        String selected = openDialog("tabnamedimmer.import.title", false);
+        openDialog("tabnamedimmer.import.title", false, this::importTextFrom);
+    }
+
+    private void importTextFrom(String selected) {
         if (selected == null) {
             return;
         }
@@ -140,7 +142,10 @@ final class GroupMembersScreen extends Screen {
 
     private void exportProfile() {
         saveMembers();
-        String selected = saveDialog("tabnamedimmer.export.title");
+        saveDialog(this::exportProfileTo);
+    }
+
+    private void exportProfileTo(String selected) {
         if (selected == null) {
             return;
         }
@@ -150,7 +155,10 @@ final class GroupMembersScreen extends Screen {
     }
 
     private void importProfile() {
-        String selected = openDialog("tabnamedimmer.import_profile.title", false);
+        openDialog("tabnamedimmer.import_profile.title", false, this::importProfileFrom);
+    }
+
+    private void importProfileFrom(String selected) {
         if (selected == null) {
             return;
         }
@@ -162,28 +170,26 @@ final class GroupMembersScreen extends Screen {
         profile.name = imported.name;
         profile.groups = imported.groups;
         profileImported = true;
-        ScreenNavigator.show(minecraft, parent);
-    }
-
-    private String openDialog(String titleKey, boolean multiple) {
-        try {
-            return TinyFileDialogs.tinyfd_openFileDialog(Component.translatable(titleKey).getString(), "",
-                    null, null, multiple);
-        } catch (LinkageError | RuntimeException exception) {
-            TabNameDimmerClient.LOGGER.warn("Unable to open a file dialog", exception);
-            status = Component.translatable("tabnamedimmer.import.no_dialog").getString();
-            return null;
+        if (minecraft != null && minecraft.gui.screen() == this) {
+            ScreenNavigator.show(minecraft, parent);
         }
     }
 
-    private String saveDialog(String titleKey) {
+    private void openDialog(String titleKey, boolean multiple, Consumer<String> onSelected) {
         try {
-            return TinyFileDialogs.tinyfd_saveFileDialog(Component.translatable(titleKey).getString(),
-                    "tabnamedimmer-profile.json", null, null);
+            FileDialogs.openFile(minecraft, multiple, onSelected);
+        } catch (LinkageError | RuntimeException exception) {
+            TabNameDimmerClient.LOGGER.warn("Unable to open a file dialog for {}", titleKey, exception);
+            status = Component.translatable("tabnamedimmer.import.no_dialog").getString();
+        }
+    }
+
+    private void saveDialog(Consumer<String> onSelected) {
+        try {
+            FileDialogs.saveFile(minecraft, "tabnamedimmer-profile.json", onSelected);
         } catch (LinkageError | RuntimeException exception) {
             TabNameDimmerClient.LOGGER.warn("Unable to open a save dialog", exception);
             status = Component.translatable("tabnamedimmer.import.no_dialog").getString();
-            return null;
         }
     }
 

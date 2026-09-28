@@ -24,7 +24,7 @@ public class BetterTabToolsMixin {
     private static void tabNameDimmer$onGetBetterTabEntries(Minecraft client, boolean ENABLE_MOD, boolean USE_EXAMPLES, int EXAMPLE_AMOUNT, String EXAMPLE_TEXT, Comparator<PlayerInfo> ENTRY_ORDERING, CallbackInfoReturnable<List<PlayerInfo>> cir) {
         if (ENABLE_MOD) {
             List<PlayerInfo> originalList = cir.getReturnValue();
-            // Pass a comparator that does nothing, because BetterTab already sorted it.
+
             Stream<PlayerInfo> processed = TabStateTracker.INSTANCE.processPlayers(originalList.stream(), (a, b) -> 0);
             cir.setReturnValue(processed.toList());
         }
