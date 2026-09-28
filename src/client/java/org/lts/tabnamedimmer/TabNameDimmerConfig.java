@@ -141,9 +141,7 @@ public class TabNameDimmerConfig {
         private boolean contains(String playerName, boolean caseSensitive) {
             Set<String> cache = normalizedMembers;
             if (cache == null || normalizedCaseSensitive != caseSensitive) {
-                // Build into a private set and publish it only once fully populated;
-                // findMatch runs from both the client tick and render paths, and a
-                // reader must never observe a half-filled cache.
+
                 cache = new LinkedHashSet<>();
                 for (String member : members) {
                     cache.add(normalizeName(member, caseSensitive));

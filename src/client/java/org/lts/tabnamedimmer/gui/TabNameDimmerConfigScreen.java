@@ -1,5 +1,6 @@
 package org.lts.tabnamedimmer.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.toasts.SystemToast;
@@ -7,7 +8,6 @@ import net.minecraft.client.gui.components.toasts.ToastManager;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
 import org.lts.tabnamedimmer.ServerScopeTracker;
 import org.lts.tabnamedimmer.TabNameDimmerClient;
 import org.lts.tabnamedimmer.TabNameDimmerConfig;
@@ -133,7 +133,6 @@ public class TabNameDimmerConfigScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
         graphics.fill(0, 0, width, height, 0xF00D141F);
 
-        // Header Panel
         graphics.fill(0, 0, width, 28, 0xFF182638);
         graphics.fill(0, 27, width, 28, 0xFF2E435E);
         int titleX = (width - font.width(title)) / 2;
@@ -146,7 +145,7 @@ public class TabNameDimmerConfigScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (event.key() == GLFW.GLFW_KEY_S && event.hasControlDown()) {
+        if (event.key() == InputConstants.KEY_S && event.hasControlDown()) {
             saveAndClose();
             return true;
         }

@@ -1,0 +1,315 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "tab-name-dimmer Deep Architecture",
+    "output": "architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "v1",
+        "label": "Tab key press & PlayerList hook",
+        "focus": [
+          "input_event",
+          "mixin_hook",
+          "core_engine",
+          "hud_renderer"
+        ],
+        "note": "Hooks PlayerListHud when holding Tab key to customize player names."
+      },
+      {
+        "id": "v2",
+        "label": "AFK detection & ping math",
+        "focus": [
+          "core_engine",
+          "math_engine",
+          "data_cache",
+          "config_store"
+        ],
+        "note": "Tracks inactivity timers and maps AFK status to dimmed text styles."
+      },
+      {
+        "id": "v3",
+        "label": "Config GUI & squad highlight",
+        "focus": [
+          "core_engine",
+          "ui_screen",
+          "action_bridge",
+          "mod_compat"
+        ],
+        "note": "Customizes dim opacity in ModMenu and highlights team squad members."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "input_event",
+      "type": "external",
+      "label": "Tab Key Hold Press",
+      "sublabel": "PlayerList Trigger",
+      "tag": "Input Event",
+      "pos": [
+        50,
+        270
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "mixin_hook",
+      "type": "security",
+      "label": "PlayerListHudMixin",
+      "sublabel": "RenderName Hook",
+      "tag": "Fabric Mixin",
+      "pos": [
+        320,
+        270
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "core_engine",
+      "type": "backend",
+      "label": "TabDimmerClient",
+      "sublabel": "Style Coordinator",
+      "tag": "Core Controller",
+      "pos": [
+        590,
+        270
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "math_engine",
+      "type": "backend",
+      "label": "AfkEvaluatorMath",
+      "sublabel": "Inactivity & Ping Math",
+      "tag": "Activity Math",
+      "pos": [
+        320,
+        420
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "data_cache",
+      "type": "database",
+      "label": "PlayerAfkMap",
+      "sublabel": "AFK Status Flags Cache",
+      "tag": "Memory State",
+      "pos": [
+        590,
+        420
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "config_store",
+      "type": "database",
+      "label": "TabDimmerConfig",
+      "sublabel": "tabdimmer.json config",
+      "tag": "Disk Config",
+      "pos": [
+        860,
+        420
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "ui_screen",
+      "type": "frontend",
+      "label": "DimmerConfigScreen",
+      "sublabel": "Alpha & Color Settings",
+      "tag": "Client GUI",
+      "pos": [
+        590,
+        120
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "hud_renderer",
+      "type": "frontend",
+      "label": "PlayerListOverlayHud",
+      "sublabel": "Gradient Tab List Render",
+      "tag": "HUD Layer",
+      "pos": [
+        860,
+        120
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "action_bridge",
+      "type": "external",
+      "label": "PlayerNamePatcher",
+      "sublabel": "Mutable Text Style Set",
+      "tag": "Text Action",
+      "pos": [
+        860,
+        270
+      ],
+      "size": [
+        180,
+        60
+      ]
+    },
+    {
+      "id": "mod_compat",
+      "type": "external",
+      "label": "SquadTabBridge",
+      "sublabel": "Squad Highlight Sync",
+      "tag": "Squad API",
+      "pos": [
+        1130,
+        270
+      ],
+      "size": [
+        180,
+        60
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Player List & AFK State Core",
+      "wraps": [
+        "core_engine",
+        "data_cache",
+        "math_engine"
+      ],
+      "pad": 20
+    },
+    {
+      "kind": "region",
+      "label": "Presentation & Display Pipeline",
+      "wraps": [
+        "ui_screen",
+        "hud_renderer"
+      ],
+      "pad": 20
+    }
+  ],
+  "connections": [
+    {
+      "from": "input_event",
+      "to": "mixin_hook",
+      "label": "hold tab",
+      "variant": "emphasis"
+    },
+    {
+      "from": "mixin_hook",
+      "to": "core_engine",
+      "label": "intercept name"
+    },
+    {
+      "from": "core_engine",
+      "to": "action_bridge",
+      "label": "patch text",
+      "variant": "emphasis"
+    },
+    {
+      "from": "action_bridge",
+      "to": "mod_compat",
+      "label": "highlight squad"
+    },
+    {
+      "from": "core_engine",
+      "to": "ui_screen",
+      "label": "open config",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDy": -20
+    },
+    {
+      "from": "ui_screen",
+      "to": "hud_renderer",
+      "label": "render gradient"
+    },
+    {
+      "from": "hud_renderer",
+      "to": "action_bridge",
+      "label": "apply style",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 20
+    },
+    {
+      "from": "mixin_hook",
+      "to": "math_engine",
+      "label": "eval AFK",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 20
+    },
+    {
+      "from": "math_engine",
+      "to": "data_cache",
+      "label": "dimmed alpha"
+    },
+    {
+      "from": "core_engine",
+      "to": "data_cache",
+      "label": "store player",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 20
+    },
+    {
+      "from": "data_cache",
+      "to": "config_store",
+      "label": "save options",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Instant AFK Player Visual Dimming",
+      "items": [
+        "Dims the display name and ping icon of inactive/AFK players on the tab menu",
+        "Makes active online players immediately noticeable during server operations"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Activity & Ping Evaluation",
+      "items": [
+        "AfkEvaluatorMath measures motion packets, chat activity, and latency variation",
+        "Smoothly fades player names into transparent grey after configurable idle minutes"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Squad & Clan Priority",
+      "items": [
+        "SquadTabBridge ensures teammates and friends remain highlighted with golden borders",
+        "Full ModMenu config screen with customizable opacity, color tinting, and ping thresholds"
+      ]
+    }
+  ]
+}

@@ -9,10 +9,9 @@ version = project.mod_version
 group = project.maven_group
 def modVersion = project.version.toString()
 def licenseArchiveName = project.name
-def minecraftVersionKey = project.minecraft_version.toString().replace('.', '_')
-def fabricNetworkingApiVersion = project.property("fabric_networking_api_version_${minecraftVersionKey}")
-def fabricLifecycleEventsVersion = project.property("fabric_lifecycle_events_version_${minecraftVersionKey}")
-def fabricKeyMappingApiVersion = project.property("fabric_key_mapping_api_version_${minecraftVersionKey}")
+def fabricNetworkingApiVersion = project.property("fabric_networking_api_version")
+def fabricLifecycleEventsVersion = project.property("fabric_lifecycle_events_version")
+def fabricKeyMappingApiVersion = project.property("fabric_key_mapping_api_version")
 def localModMenu = file(project.modmenu_jar)
 
 base {
@@ -37,22 +36,11 @@ loom {
 }
 
 sourceSets {
-    client {
-        java {
-            if (project.minecraft_version == "26.2") {
-                srcDir "src/compat_26_2/java"
-            } else {
-                srcDir "src/compat_26_1/java"
-            }
-        }
-    }
     test {
         compileClasspath += sourceSets.client.output
         runtimeClasspath += sourceSets.client.output
     }
 }
-
-
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"

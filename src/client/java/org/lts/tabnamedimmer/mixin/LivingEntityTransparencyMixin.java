@@ -12,11 +12,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
-/**
- * Wraps the SubmitNodeCollector during LivingEntityRenderer.submit for unlisted players
- * while Shift+Tab are held, applying alpha transparency to the player body AND all attached layers
- * (armor, helmets, held items, shields, totems, cape, elytra, etc.).
- */
 @Mixin(LivingEntityRenderer.class)
 public abstract class LivingEntityTransparencyMixin {
 

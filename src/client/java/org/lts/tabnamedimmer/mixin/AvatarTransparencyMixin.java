@@ -9,11 +9,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Captures the player name during AvatarRenderer.extractRenderState so that
- * the transparency mixin on LivingEntityRenderer.getModelTint can look it up
- * by entity ID (the only identifier surviving into the render state).
- */
 @Mixin(AvatarRenderer.class)
 public class AvatarTransparencyMixin {
 

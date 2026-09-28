@@ -68,8 +68,7 @@ class AfkDetectorTest {
 
     @Test
     void handlesDisplayNamesWhoseLengthGrowsWhenLowerCased() {
-        // U+0130 lower-cases to two chars; a prefix of them used to push the
-        // account-name index past the end of the original string and crash.
+
         assertFalse(AfkDetector.isAfk("Player", Component.literal("İİİ Player")));
         assertTrue(AfkDetector.isAfk("Player", Component.literal("İİİ Player [AFK]")));
     }
