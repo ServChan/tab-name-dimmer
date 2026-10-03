@@ -5,6 +5,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -14,13 +16,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 public class TabNameDimmerConfig {
     public static final int CURRENT_SCHEMA_VERSION = 2;
@@ -28,13 +35,18 @@ public class TabNameDimmerConfig {
     public static final long MAX_TRANSFER_BYTES = 1024L * 1024L;
     public static final int MAX_GROUPS = 32;
     public static final int MAX_MEMBERS_PER_GROUP = 4096;
+    public static final int MIN_PRIORITY = -1000;
+    public static final int MAX_PRIORITY = 1000;
     private static final int MAX_TOTAL_MEMBERS_PER_PROFILE = 8192;
     private static final int MAX_SERVER_PROFILES = 128;
 
+    private static final Logger LOGGER = LoggerFactory.getLogger("tabnamedimmer");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Object IO_LOCK = new Object();
     private static volatile TabNameDimmerConfig instance = defaults();
-    private static long lastModified = -1L;
-    private static long nextCheckTime;
+    private static volatile long lastModified = -1L;
+    private static volatile Path configDirectoryOverride;
+    private static ScheduledExecutorService watcher;
 
     public enum DisplayMode {
         ANIMATED_SORT, FILTER, EXTRA_HUD
@@ -82,6 +94,8 @@ public class TabNameDimmerConfig {
         public String name = "Global";
         public List<PlayerGroup> groups = new ArrayList<>();
 
+        private transient volatile MatchIndex matchIndex;
+
         public Profile() {
         }
 
@@ -106,6 +120,31 @@ public class TabNameDimmerConfig {
             }
             return copy;
         }
+
+        public Match findMatch(String playerName, boolean caseSensitive) {
+            if (playerName == null || playerName.isBlank() || groups == null) {
+                return null;
+            }
+            MatchIndex index = matchIndex;
+            if (index == null || !index.isCurrent(groups, caseSensitive)) {
+                index = MatchIndex.build(groups, caseSensitive);
+                matchIndex = index;
+            }
+            return index.find(playerName);
+        }
+
+        public boolean sameGroupsAs(Profile other) {
+            if (other == null || groups == null || other.groups == null || groups.size() != other.groups.size()) {
+                return false;
+            }
+            for (int i = 0; i < groups.size(); i++) {
+                PlayerGroup group = groups.get(i);
+                if (group == null ? other.groups.get(i) != null : !group.sameAs(other.groups.get(i))) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     public static final class PlayerGroup {
@@ -118,11 +157,12 @@ public class TabNameDimmerConfig {
         public boolean transparencyEnabled;
         public List<String> members = new ArrayList<>();
 
-        private transient volatile Set<String> normalizedMembers;
-        private transient volatile boolean normalizedCaseSensitive;
-
         public static PlayerGroup defaultGroup() {
             return new PlayerGroup();
+        }
+
+        public static boolean isMask(String member) {
+            return member != null && (member.indexOf('*') >= 0 || member.indexOf('?') >= 0);
         }
 
         public PlayerGroup copy() {
@@ -138,26 +178,125 @@ public class TabNameDimmerConfig {
             return copy;
         }
 
-        private boolean contains(String playerName, boolean caseSensitive) {
-            Set<String> cache = normalizedMembers;
-            if (cache == null || normalizedCaseSensitive != caseSensitive) {
-
-                cache = new LinkedHashSet<>();
-                for (String member : members) {
-                    cache.add(normalizeName(member, caseSensitive));
-                }
-                normalizedCaseSensitive = caseSensitive;
-                normalizedMembers = cache;
-            }
-            return cache.contains(normalizeName(playerName, caseSensitive));
-        }
-
-        private void invalidateCache() {
-            normalizedMembers = null;
+        public boolean sameAs(PlayerGroup other) {
+            return other != null
+                    && Objects.equals(name, other.name)
+                    && color == other.color
+                    && priority == other.priority
+                    && enabled == other.enabled
+                    && colorizeNames == other.colorizeNames
+                    && glowingEnabled == other.glowingEnabled
+                    && transparencyEnabled == other.transparencyEnabled
+                    && Objects.equals(members, other.members);
         }
     }
 
-    public record Match(PlayerGroup group, int priority) {
+    public record Match(PlayerGroup group, int priority, int order) {
+        public Match(PlayerGroup group, int priority) {
+            this(group, priority, 0);
+        }
+
+        boolean outranks(Match other) {
+            return other == null || priority > other.priority || (priority == other.priority && order < other.order);
+        }
+    }
+
+    private record MaskRule(Pattern pattern, Match match) {
+    }
+
+    private static final class MatchIndex {
+        private final List<PlayerGroup> source;
+        private final boolean caseSensitive;
+        private final PlayerGroup[] groups;
+        private final boolean[] enabled;
+        private final int[] priorities;
+        private final List<?>[] memberLists;
+        private final int[] memberSizes;
+        private final Map<String, Match> exact;
+        private final List<MaskRule> masks;
+
+        private MatchIndex(List<PlayerGroup> source, boolean caseSensitive, Map<String, Match> exact,
+                           List<MaskRule> masks) {
+            int size = source.size();
+            this.source = source;
+            this.caseSensitive = caseSensitive;
+            this.groups = new PlayerGroup[size];
+            this.enabled = new boolean[size];
+            this.priorities = new int[size];
+            this.memberLists = new List<?>[size];
+            this.memberSizes = new int[size];
+            for (int i = 0; i < size; i++) {
+                PlayerGroup group = source.get(i);
+                groups[i] = group;
+                if (group != null) {
+                    enabled[i] = group.enabled;
+                    priorities[i] = group.priority;
+                    memberLists[i] = group.members;
+                    memberSizes[i] = group.members == null ? 0 : group.members.size();
+                }
+            }
+            this.exact = exact;
+            this.masks = masks;
+        }
+
+        static MatchIndex build(List<PlayerGroup> source, boolean caseSensitive) {
+            Map<String, Match> exact = new HashMap<>();
+            List<MaskRule> masks = new ArrayList<>();
+            for (int order = 0; order < source.size(); order++) {
+                PlayerGroup group = source.get(order);
+                if (group == null || !group.enabled || group.members == null) {
+                    continue;
+                }
+                Match match = new Match(group, group.priority, order);
+                for (String member : group.members) {
+                    String normalized = normalizeName(member, caseSensitive);
+                    if (normalized.isEmpty()) {
+                        continue;
+                    }
+                    if (PlayerGroup.isMask(normalized)) {
+                        masks.add(new MaskRule(compileMask(normalized), match));
+                    } else {
+                        exact.merge(normalized, match,
+                                (current, candidate) -> candidate.outranks(current) ? candidate : current);
+                    }
+                }
+            }
+            masks.sort((left, right) -> left.match().outranks(right.match()) ? -1
+                    : right.match().outranks(left.match()) ? 1 : 0);
+            return new MatchIndex(source, caseSensitive, exact, List.copyOf(masks));
+        }
+
+        boolean isCurrent(List<PlayerGroup> current, boolean currentCaseSensitive) {
+            if (current != source || currentCaseSensitive != caseSensitive || current.size() != groups.length) {
+                return false;
+            }
+            for (int i = 0; i < groups.length; i++) {
+                PlayerGroup group = current.get(i);
+                if (group != groups[i]) {
+                    return false;
+                }
+                if (group != null && (group.enabled != enabled[i] || group.priority != priorities[i]
+                        || group.members != memberLists[i]
+                        || (group.members == null ? 0 : group.members.size()) != memberSizes[i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        Match find(String playerName) {
+            String normalized = normalizeName(playerName, caseSensitive);
+            Match best = exact.get(normalized);
+            for (MaskRule rule : masks) {
+                if (!rule.match().outranks(best)) {
+                    break;
+                }
+                if (rule.pattern().matcher(normalized).matches()) {
+                    return rule.match();
+                }
+            }
+            return best;
+        }
     }
 
     private static final class LegacyConfig {
@@ -183,36 +322,62 @@ public class TabNameDimmerConfig {
     }
 
     public static TabNameDimmerConfig load() {
-        ensureConfigExists();
-        Path configPath = configPath();
-        try (Reader reader = Files.newBufferedReader(configPath)) {
-            JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-            TabNameDimmerConfig loaded;
-            loaded = parseConfig(root);
-            instance = sanitize(loaded == null ? defaults() : loaded);
-            lastModified = Files.getLastModifiedTime(configPath).toMillis();
-        } catch (IOException | RuntimeException exception) {
-            TabNameDimmerClient.LOGGER.warn("Failed to load the Tab Name Dimmer configuration; using recovery", exception);
-            instance = loadBackup();
-            lastModified = currentModifiedTime();
+        synchronized (IO_LOCK) {
+            Path configPath = configPath();
+            if (!Files.exists(configPath)) {
+                if (Files.isRegularFile(backupPath())) {
+                    LOGGER.warn("The Tab Name Dimmer configuration is missing; restoring it from the backup");
+                    instance = loadBackup();
+                    lastModified = currentModifiedTime();
+                    return instance;
+                }
+                if (!save(defaults())) {
+                    LOGGER.warn("Failed to create the Tab Name Dimmer configuration");
+                }
+            }
+            try (Reader reader = Files.newBufferedReader(configPath)) {
+                JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
+                TabNameDimmerConfig loaded = parseConfig(root);
+                instance = sanitize(loaded == null ? defaults() : loaded);
+                lastModified = Files.getLastModifiedTime(configPath).toMillis();
+            } catch (IOException | RuntimeException exception) {
+                LOGGER.warn("Failed to load the Tab Name Dimmer configuration; using recovery", exception);
+                instance = loadBackup();
+                lastModified = currentModifiedTime();
+            }
+            return instance;
         }
-        return instance;
     }
 
-    public static void pollForChanges() {
-        long now = System.currentTimeMillis();
-        if (now <= nextCheckTime) {
+    public static synchronized void startWatching() {
+        if (watcher != null) {
             return;
         }
-        nextCheckTime = now + 1000L;
+        watcher = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "Tab Name Dimmer config watcher");
+            thread.setDaemon(true);
+            return thread;
+        });
+        watcher.scheduleWithFixedDelay(TabNameDimmerConfig::reloadIfChanged, 1L, 1L, TimeUnit.SECONDS);
+    }
+
+    static void reloadIfChanged() {
         try {
-            Path configPath = configPath();
-            long modified = Files.exists(configPath) ? Files.getLastModifiedTime(configPath).toMillis() : -1L;
-            if (modified != lastModified) {
-                load();
+            synchronized (IO_LOCK) {
+                if (currentModifiedTime() != lastModified) {
+                    load();
+                }
             }
-        } catch (IOException exception) {
-            TabNameDimmerClient.LOGGER.warn("Failed to check the Tab Name Dimmer configuration timestamp", exception);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Failed to reload the Tab Name Dimmer configuration", exception);
+        }
+    }
+
+    static void useConfigDirectoryForTests(Path directory) {
+        synchronized (IO_LOCK) {
+            configDirectoryOverride = directory;
+            instance = defaults();
+            lastModified = -1L;
         }
     }
 
@@ -226,12 +391,14 @@ public class TabNameDimmerConfig {
 
     public static boolean save(TabNameDimmerConfig config) {
         TabNameDimmerConfig sanitized = sanitize(config == null ? defaults() : config.copy());
-        if (!writeJsonAtomically(configPath(), backupPath(), sanitized)) {
-            return false;
+        synchronized (IO_LOCK) {
+            if (!writeJsonAtomically(configPath(), backupPath(), sanitized)) {
+                return false;
+            }
+            instance = sanitized;
+            lastModified = currentModifiedTime();
+            return true;
         }
-        instance = sanitized;
-        lastModified = currentModifiedTime();
-        return true;
     }
 
     public static boolean exportProfile(Profile profile, Path path) {
@@ -255,7 +422,7 @@ public class TabNameDimmerConfig {
                 return sanitizeProfile(transfer.profile, "Imported");
             }
         } catch (IOException | RuntimeException exception) {
-            TabNameDimmerClient.LOGGER.warn("Failed to import a Tab Name Dimmer profile", exception);
+            LOGGER.warn("Failed to import a Tab Name Dimmer profile", exception);
             return null;
         }
     }
@@ -268,6 +435,10 @@ public class TabNameDimmerConfig {
             }
         }
         return globalProfile;
+    }
+
+    public boolean hasServerProfile(String scope) {
+        return scope != null && serverProfiles.containsKey(scope);
     }
 
     public Profile getOrCreateServerProfile(String scope) {
@@ -286,15 +457,10 @@ public class TabNameDimmerConfig {
     }
 
     public Match findMatch(String playerName, String scope) {
-        if (!enabled || playerName == null || playerName.isBlank()) {
+        if (!enabled) {
             return null;
         }
-        return activeProfile(scope).groups.stream()
-                .filter(group -> group.enabled && group.contains(playerName, caseSensitive))
-                .sorted(Comparator.comparingInt((PlayerGroup group) -> group.priority).reversed())
-                .map(group -> new Match(group, group.priority))
-                .findFirst()
-                .orElse(null);
+        return activeProfile(scope).findMatch(playerName, caseSensitive);
     }
 
     public boolean shouldDim(String playerName) {
@@ -305,12 +471,8 @@ public class TabNameDimmerConfig {
         return enabled && findMatch(playerName, scope) == null;
     }
 
-    public List<PlayerGroup> orderedGroups(String scope) {
-        return activeProfile(scope).groups.stream()
-                .filter(group -> group.enabled)
-                .sorted(Comparator.comparingInt((PlayerGroup group) -> group.priority).reversed()
-                        .thenComparing(group -> group.name, String.CASE_INSENSITIVE_ORDER))
-                .toList();
+    public boolean sameSettingsAs(TabNameDimmerConfig other) {
+        return other != null && GSON.toJsonTree(this).equals(GSON.toJsonTree(other));
     }
 
     public TabNameDimmerConfig copy() {
@@ -457,7 +619,7 @@ public class TabNameDimmerConfig {
             group.name = "Group " + index;
         }
         group.color &= 0xFFFFFF;
-        group.priority = Math.max(-1000, Math.min(1000, group.priority));
+        group.priority = clampPriority(group.priority);
         if (group.members == null) {
             group.members = new ArrayList<>();
         }
@@ -472,8 +634,11 @@ public class TabNameDimmerConfig {
             }
         }
         group.members = new ArrayList<>(members);
-        group.invalidateCache();
         return group;
+    }
+
+    public static int clampPriority(int priority) {
+        return Math.max(MIN_PRIORITY, Math.min(MAX_PRIORITY, priority));
     }
 
     private static float clampFinite(float value, float fallback, float minimum, float maximum) {
@@ -486,15 +651,30 @@ public class TabNameDimmerConfig {
         return caseSensitive ? trimmed : trimmed.toLowerCase(Locale.ROOT);
     }
 
+    private static Pattern compileMask(String mask) {
+        StringBuilder regex = new StringBuilder(mask.length() + 8);
+        StringBuilder literal = new StringBuilder();
+        for (int i = 0; i < mask.length(); i++) {
+            char character = mask.charAt(i);
+            if (character == '*' || character == '?') {
+                if (!literal.isEmpty()) {
+                    regex.append(Pattern.quote(literal.toString()));
+                    literal.setLength(0);
+                }
+                regex.append(character == '*' ? ".*" : ".");
+            } else {
+                literal.append(character);
+            }
+        }
+        if (!literal.isEmpty()) {
+            regex.append(Pattern.quote(literal.toString()));
+        }
+        return Pattern.compile(regex.toString(), Pattern.DOTALL);
+    }
+
     private static String trimToLength(String value, int maximumLength) {
         String trimmed = value == null ? "" : value.trim();
         return trimmed.length() <= maximumLength ? trimmed : trimmed.substring(0, maximumLength);
-    }
-
-    private static void ensureConfigExists() {
-        if (!Files.exists(configPath()) && !save(defaults())) {
-            TabNameDimmerClient.LOGGER.warn("Failed to create the Tab Name Dimmer configuration");
-        }
     }
 
     private static TabNameDimmerConfig defaults() {
@@ -518,11 +698,11 @@ public class TabNameDimmerConfig {
                 }
                 Files.copy(backupPath, configPath, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException exception) {
-                TabNameDimmerClient.LOGGER.warn("Failed to restore the primary Tab Name Dimmer configuration", exception);
+                LOGGER.warn("Failed to restore the primary Tab Name Dimmer configuration", exception);
             }
             return recovered;
         } catch (IOException | RuntimeException exception) {
-            TabNameDimmerClient.LOGGER.warn("Failed to recover the Tab Name Dimmer configuration backup", exception);
+            LOGGER.warn("Failed to recover the Tab Name Dimmer configuration backup", exception);
             return defaults();
         }
     }
@@ -544,11 +724,11 @@ public class TabNameDimmerConfig {
             }
             return true;
         } catch (IOException exception) {
-            TabNameDimmerClient.LOGGER.warn("Failed to write Tab Name Dimmer JSON data", exception);
+            LOGGER.warn("Failed to write Tab Name Dimmer JSON data", exception);
             try {
                 Files.deleteIfExists(temporary);
             } catch (IOException cleanupException) {
-                TabNameDimmerClient.LOGGER.debug("Failed to clean a temporary Tab Name Dimmer file", cleanupException);
+                LOGGER.debug("Failed to clean a temporary Tab Name Dimmer file", cleanupException);
             }
             return false;
         }
@@ -564,11 +744,12 @@ public class TabNameDimmerConfig {
     }
 
     private static Path configPath() {
-        return FabricLoader.getInstance().getConfigDir().resolve("tab-name-dimmer.json");
+        Path directory = configDirectoryOverride;
+        return (directory != null ? directory : FabricLoader.getInstance().getConfigDir())
+                .resolve("tab-name-dimmer.json");
     }
 
     private static Path backupPath() {
-        Path configPath = configPath();
-        return configPath.resolveSibling("tab-name-dimmer.json.bak");
+        return configPath().resolveSibling("tab-name-dimmer.json.bak");
     }
 }

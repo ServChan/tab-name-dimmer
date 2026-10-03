@@ -22,8 +22,8 @@ public class BetterTabToolsMixin {
 
     @Inject(method = "getPlayerEntries", at = @At("RETURN"), cancellable = true)
     private static void tabNameDimmer$onGetBetterTabEntries(Minecraft client, boolean ENABLE_MOD, boolean USE_EXAMPLES, int EXAMPLE_AMOUNT, String EXAMPLE_TEXT, Comparator<PlayerInfo> ENTRY_ORDERING, CallbackInfoReturnable<List<PlayerInfo>> cir) {
-        if (ENABLE_MOD) {
-            List<PlayerInfo> originalList = cir.getReturnValue();
+        List<PlayerInfo> originalList = cir.getReturnValue();
+        if (ENABLE_MOD && originalList != null) {
 
             Stream<PlayerInfo> processed = TabStateTracker.INSTANCE.processPlayers(originalList.stream(), (a, b) -> 0);
             cir.setReturnValue(processed.toList());

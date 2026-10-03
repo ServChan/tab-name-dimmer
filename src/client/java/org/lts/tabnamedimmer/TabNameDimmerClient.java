@@ -22,6 +22,7 @@ public class TabNameDimmerClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         TabNameDimmerConfig.load();
+        TabNameDimmerConfig.startWatching();
         activationKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.tabnamedimmer.activate",
                 InputConstants.Type.KEYBOARD,
@@ -30,7 +31,7 @@ public class TabNameDimmerClient implements ClientModInitializer {
         ));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             tabListOpen = client != null && client.options != null && client.options.keyPlayerList.isDown();
-            TabNameDimmerConfig.pollForChanges();
+            AfkDetector.clearCache();
             ServerScopeTracker.update(client);
             ActivationController.tick(client, activationKey);
             LineOfSightCache.INSTANCE.refresh(client);
@@ -44,6 +45,7 @@ public class TabNameDimmerClient implements ClientModInitializer {
             ServerScopeTracker.clear();
             ActivationController.reset();
             OnlinePlayerTracker.INSTANCE.clear();
+            AfkDetector.clearCache();
             tabListOpen = false;
         });
     }

@@ -11,7 +11,9 @@ import net.minecraft.world.scores.ScoreHolder;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 
+import java.util.IdentityHashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,7 +27,25 @@ public final class AfkDetector {
     private static final Pattern SLEEP_MARKER = Pattern.compile(
             "(?iu)(?:^|[^\\p{L}\\p{N}_])([zᴢᶻ]+)(?:$|[^\\p{L}\\p{N}_])");
 
+    private static final Map<PlayerInfo, Boolean> TICK_CACHE = new IdentityHashMap<>();
+
     private AfkDetector() {
+    }
+
+    public static boolean isAfkCached(PlayerInfo info) {
+        if (info == null) {
+            return false;
+        }
+        Boolean cached = TICK_CACHE.get(info);
+        if (cached == null) {
+            cached = isAfk(info);
+            TICK_CACHE.put(info, cached);
+        }
+        return cached;
+    }
+
+    public static void clearCache() {
+        TICK_CACHE.clear();
     }
 
     public static boolean isAfk(PlayerInfo info) {

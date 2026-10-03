@@ -3,8 +3,11 @@ package org.lts.tabnamedimmer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -113,6 +116,147 @@ class TabNameDimmerConfigTest {
         config.serverProfiles = null;
         assertNotNull(config.copy().globalProfile);
         assertTrue(config.copy().serverProfiles.isEmpty());
+    }
+
+    @Test
+    void restoresMissingPrimaryConfigurationFromBackup() throws Exception {
+        TabNameDimmerConfig.useConfigDirectoryForTests(temporaryDirectory);
+        try {
+            TabNameDimmerConfig saved = new TabNameDimmerConfig();
+            saved.globalProfile.groups.getFirst().members.add("Alice");
+            assertTrue(TabNameDimmerConfig.save(saved));
+            saved.globalProfile.groups.getFirst().members.add("Bob");
+            assertTrue(TabNameDimmerConfig.save(saved));
+            Files.delete(temporaryDirectory.resolve("tab-name-dimmer.json"));
+
+            TabNameDimmerConfig loaded = TabNameDimmerConfig.load();
+
+            assertEquals(List.of("Alice"), loaded.globalProfile.groups.getFirst().members);
+            assertTrue(Files.isRegularFile(temporaryDirectory.resolve("tab-name-dimmer.json")));
+            assertEquals(List.of("Alice"), TabNameDimmerConfig.load().globalProfile.groups.getFirst().members);
+        } finally {
+            TabNameDimmerConfig.useConfigDirectoryForTests(null);
+        }
+    }
+
+    @Test
+    void restoresCorruptPrimaryConfigurationFromBackup() throws Exception {
+        TabNameDimmerConfig.useConfigDirectoryForTests(temporaryDirectory);
+        try {
+            TabNameDimmerConfig saved = new TabNameDimmerConfig();
+            saved.globalProfile.groups.getFirst().members.add("Alice");
+            assertTrue(TabNameDimmerConfig.save(saved));
+            assertTrue(TabNameDimmerConfig.save(saved));
+            Files.writeString(temporaryDirectory.resolve("tab-name-dimmer.json"), "{ broken");
+
+            TabNameDimmerConfig loaded = TabNameDimmerConfig.load();
+
+            assertEquals(List.of("Alice"), loaded.globalProfile.groups.getFirst().members);
+            assertTrue(Files.isRegularFile(temporaryDirectory.resolve("tab-name-dimmer.json.corrupt")));
+        } finally {
+            TabNameDimmerConfig.useConfigDirectoryForTests(null);
+        }
+    }
+
+    @Test
+    void createsDefaultsWhenNoConfigurationExists() {
+        TabNameDimmerConfig.useConfigDirectoryForTests(temporaryDirectory);
+        try {
+            TabNameDimmerConfig loaded = TabNameDimmerConfig.load();
+
+            assertEquals(1, loaded.globalProfile.groups.size());
+            assertTrue(Files.isRegularFile(temporaryDirectory.resolve("tab-name-dimmer.json")));
+        } finally {
+            TabNameDimmerConfig.useConfigDirectoryForTests(null);
+        }
+    }
+
+    @Test
+    void reloadsConfigurationChangedOnDisk() throws Exception {
+        TabNameDimmerConfig.useConfigDirectoryForTests(temporaryDirectory);
+        try {
+            assertTrue(TabNameDimmerConfig.save(new TabNameDimmerConfig()));
+            Path file = temporaryDirectory.resolve("tab-name-dimmer.json");
+            Files.writeString(file, Files.readString(file).replace("\"members\": []", "\"members\": [\"Carol\"]"));
+            Files.setLastModifiedTime(file, FileTime.fromMillis(Files.getLastModifiedTime(file).toMillis() + 5000L));
+
+            TabNameDimmerConfig.reloadIfChanged();
+
+            assertEquals(List.of("Carol"), TabNameDimmerConfig.current().globalProfile.groups.getFirst().members);
+        } finally {
+            TabNameDimmerConfig.useConfigDirectoryForTests(null);
+        }
+    }
+
+    @Test
+    void masksMatchNamesUsingWildcards() {
+        TabNameDimmerConfig config = new TabNameDimmerConfig();
+        config.globalProfile.groups.getFirst().members.addAll(List.of("Clan_*", "Bot?", "a.b*"));
+
+        assertNotNull(config.findMatch("Clan_Steve", TabNameDimmerConfig.GLOBAL_SCOPE));
+        assertNotNull(config.findMatch("clan_", TabNameDimmerConfig.GLOBAL_SCOPE));
+        assertNotNull(config.findMatch("Bot7", TabNameDimmerConfig.GLOBAL_SCOPE));
+        assertNull(config.findMatch("Bot77", TabNameDimmerConfig.GLOBAL_SCOPE));
+        assertNotNull(config.findMatch("a.bc", TabNameDimmerConfig.GLOBAL_SCOPE));
+        assertNull(config.findMatch("axbc", TabNameDimmerConfig.GLOBAL_SCOPE));
+        assertNull(config.findMatch("MyClan_Steve", TabNameDimmerConfig.GLOBAL_SCOPE));
+
+        config.caseSensitive = true;
+        assertNull(config.findMatch("clan_Steve", TabNameDimmerConfig.GLOBAL_SCOPE));
+    }
+
+    @Test
+    void exactAndMaskMatchesRespectPriorityAndListOrder() {
+        TabNameDimmerConfig config = new TabNameDimmerConfig();
+        config.globalProfile.groups = new ArrayList<>();
+        TabNameDimmerConfig.PlayerGroup masked = TabNameDimmerConfig.PlayerGroup.defaultGroup();
+        masked.name = "Masked";
+        masked.priority = 5;
+        masked.members.add("Clan_*");
+        TabNameDimmerConfig.PlayerGroup exact = TabNameDimmerConfig.PlayerGroup.defaultGroup();
+        exact.name = "Exact";
+        exact.priority = 5;
+        exact.members.add("Clan_Bob");
+        config.globalProfile.groups.add(masked);
+        config.globalProfile.groups.add(exact);
+
+        assertEquals("Masked", config.findMatch("Clan_Bob", TabNameDimmerConfig.GLOBAL_SCOPE).group().name);
+
+        exact.priority = 6;
+        assertEquals("Exact", config.findMatch("Clan_Bob", TabNameDimmerConfig.GLOBAL_SCOPE).group().name);
+        assertEquals("Masked", config.findMatch("Clan_Amy", TabNameDimmerConfig.GLOBAL_SCOPE).group().name);
+
+        masked.enabled = false;
+        assertNull(config.findMatch("Clan_Amy", TabNameDimmerConfig.GLOBAL_SCOPE));
+    }
+
+    @Test
+    void matchIndexFollowsMemberEdits() {
+        TabNameDimmerConfig config = new TabNameDimmerConfig();
+        TabNameDimmerConfig.PlayerGroup group = config.globalProfile.groups.getFirst();
+        assertNull(config.findMatch("Dave", TabNameDimmerConfig.GLOBAL_SCOPE));
+
+        group.members.add("Dave");
+        assertNotNull(config.findMatch("Dave", TabNameDimmerConfig.GLOBAL_SCOPE));
+
+        group.members = new ArrayList<>(List.of("Eve"));
+        assertNull(config.findMatch("Dave", TabNameDimmerConfig.GLOBAL_SCOPE));
+        assertNotNull(config.findMatch("eve", TabNameDimmerConfig.GLOBAL_SCOPE));
+
+        config.enabled = false;
+        assertNull(config.findMatch("Eve", TabNameDimmerConfig.GLOBAL_SCOPE));
+    }
+
+    @Test
+    void comparesProfilesByGroupContent() {
+        TabNameDimmerConfig.Profile profile = TabNameDimmerConfig.Profile.defaultProfile();
+        profile.groups.getFirst().members.add("Alice");
+        TabNameDimmerConfig.Profile copy = profile.copy();
+        copy.name = "server:example.org";
+
+        assertTrue(copy.sameGroupsAs(profile));
+        copy.groups.getFirst().glowingEnabled = true;
+        assertFalse(copy.sameGroupsAs(profile));
     }
 
     @Test

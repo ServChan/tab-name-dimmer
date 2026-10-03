@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ContainerObjectSelectionList;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
@@ -16,6 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -29,8 +32,10 @@ final class GroupMembersScreen extends Screen {
     private final TabNameDimmerConfig.Profile profile;
     private final TabNameDimmerConfig.PlayerGroup group;
     private MemberList memberList;
+    private String filter = "";
     private String status = "";
     private boolean profileImported;
+    private boolean clearArmed;
 
     GroupMembersScreen(Screen parent, TabNameDimmerConfig config,
                        TabNameDimmerConfig.Profile profile, TabNameDimmerConfig.PlayerGroup group) {
@@ -51,7 +56,7 @@ final class GroupMembersScreen extends Screen {
 
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.quick_add"), button -> {
             saveMembers();
-            ScreenNavigator.show(minecraft, new OnlinePlayersScreen(this, config, group));
+            ScreenNavigator.show(minecraft, new OnlinePlayersScreen(this, config, profile, group));
         }).bounds(left, y, buttonWidth, 20).build());
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.import_txt"), button -> importText())
                 .bounds(left + (buttonWidth + gap), y, buttonWidth, 20).build());
@@ -60,9 +65,43 @@ final class GroupMembersScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.import_profile"), button -> importProfile())
                 .bounds(left + buttonWidth + gap, y + 24, buttonWidth, 20).build());
 
-        int listTop = y + 54;
+        int quarterWidth = (buttonWidth - gap) / 2;
+        EditBox filterField = new EditBox(font, left, y + 48, buttonWidth, 20,
+                Component.translatable("tabnamedimmer.field.member_filter"));
+        filterField.setMaxLength(64);
+        filterField.setHint(Component.translatable("tabnamedimmer.field.member_filter"));
+        filterField.setValue(filter);
+        filterField.setResponder(value -> {
+            filter = value;
+            if (memberList != null) {
+                memberList.setFilter(value);
+            }
+        });
+        addRenderableWidget(filterField);
+        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.sort_members"), button -> {
+            clearArmed = false;
+            status = "";
+            memberList.sortNames(config.caseSensitive);
+            rebuildWidgets();
+        }).bounds(left + buttonWidth + gap, y + 48, quarterWidth, 20)
+                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.sort_members"))).build());
+        addRenderableWidget(Button.builder(Component.translatable(clearArmed
+                ? "tabnamedimmer.button.confirm" : "tabnamedimmer.button.clear_members"), button -> {
+            saveMembers();
+            status = "";
+            if (!clearArmed) {
+                clearArmed = true;
+            } else {
+                clearArmed = false;
+                group.members = new ArrayList<>();
+            }
+            rebuildWidgets();
+        }).bounds(left + buttonWidth + gap * 2 + quarterWidth, y + 48, buttonWidth - quarterWidth - gap, 20).build());
+
+        int listTop = y + 74;
         int listHeight = Math.max(20, height - listTop - 42);
         memberList = new MemberList(left, listTop, contentWidth, listHeight);
+        memberList.setFilter(filter);
         addRenderableWidget(memberList);
         for (String member : group.members) {
             memberList.addName(member);
@@ -81,9 +120,10 @@ final class GroupMembersScreen extends Screen {
         graphics.fill(0, 0, width, 28, 0xFF182638);
         graphics.fill(0, 27, width, 28, 0xFF2E435E);
         graphics.centeredText(font, title, width / 2, 9, 0xFFFFFFFF);
-        if (!status.isBlank()) {
-            graphics.centeredText(font, Component.literal(status), width / 2, 21, 0xFF88C0D0);
-        }
+        Component line = status.isBlank()
+                ? Component.translatable("tabnamedimmer.members.count", memberList == null ? 0 : memberList.count())
+                : Component.literal(status);
+        graphics.centeredText(font, line, width / 2, 29, 0xFF88C0D0);
         super.extractRenderState(graphics, mouseX, mouseY, tickDelta);
     }
 
@@ -97,6 +137,12 @@ final class GroupMembersScreen extends Screen {
             return true;
         }
         return super.keyPressed(event);
+    }
+
+    @Override
+    public void resize(int width, int height) {
+        saveMembers();
+        super.resize(width, height);
     }
 
     @Override
@@ -133,6 +179,7 @@ final class GroupMembersScreen extends Screen {
             }
             List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
             int added = memberList.addNames(lines, config.caseSensitive);
+            saveMembers();
             status = Component.translatable("tabnamedimmer.import.added", added).getString();
         } catch (IOException | RuntimeException exception) {
             TabNameDimmerClient.LOGGER.warn("Failed to import the selected name list", exception);
@@ -196,6 +243,8 @@ final class GroupMembersScreen extends Screen {
     private final class MemberList extends ContainerObjectSelectionList<MemberEntry> {
         private final int left;
         private final int rowWidth;
+        private final List<MemberEntry> all = new ArrayList<>();
+        private String filterKey = "";
 
         MemberList(int left, int top, int width, int height) {
             super(GroupMembersScreen.this.minecraft, width, height, top, ROW_HEIGHT);
@@ -207,7 +256,20 @@ final class GroupMembersScreen extends Screen {
         }
 
         void addName(String name) {
-            addEntry(new MemberEntry(this, name));
+            MemberEntry entry = new MemberEntry(this, name);
+            all.add(entry);
+            if (visible(entry)) {
+                addEntry(entry);
+            }
+        }
+
+        void setFilter(String value) {
+            String key = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+            if (!key.equals(filterKey)) {
+                filterKey = key;
+                replaceEntries(all.stream().filter(this::visible).toList());
+                setScrollAmount(0.0D);
+            }
         }
 
         int addNames(List<String> imported, boolean caseSensitive) {
@@ -227,22 +289,47 @@ final class GroupMembersScreen extends Screen {
                     }
                 }
             }
-            clearEntries();
-            merged.values().forEach(this::addName);
-            ensureTrailingEmptyRow();
+            replaceNames(merged.values());
             return merged.size() - before;
         }
 
+        void sortNames(boolean caseSensitive) {
+            Map<String, String> unique = new LinkedHashMap<>();
+            for (String name : names()) {
+                unique.putIfAbsent(key(name, caseSensitive), name);
+            }
+            List<String> sorted = new ArrayList<>(unique.values());
+            sorted.sort(String.CASE_INSENSITIVE_ORDER.thenComparing(Comparator.naturalOrder()));
+            group.members = sorted;
+        }
+
+        private void replaceNames(Collection<String> names) {
+            all.clear();
+            clearEntries();
+            names.forEach(this::addName);
+            ensureTrailingEmptyRow();
+        }
+
         void ensureTrailingEmptyRow() {
-            if (children().size() <= TabNameDimmerConfig.MAX_MEMBERS_PER_GROUP
-                    && (children().isEmpty() || !children().getLast().value().isBlank())) {
+            if (all.size() <= TabNameDimmerConfig.MAX_MEMBERS_PER_GROUP
+                    && (all.isEmpty() || !all.getLast().value().isBlank())) {
                 addName("");
             }
         }
 
+        int count() {
+            int count = 0;
+            for (MemberEntry entry : all) {
+                if (!entry.value().isBlank()) {
+                    count++;
+                }
+            }
+            return count;
+        }
+
         List<String> names() {
             List<String> names = new ArrayList<>();
-            for (MemberEntry entry : children()) {
+            for (MemberEntry entry : all) {
                 String name = entry.value().trim();
                 if (!name.isBlank()) {
                     names.add(name);
@@ -252,6 +339,11 @@ final class GroupMembersScreen extends Screen {
                 }
             }
             return names;
+        }
+
+        private boolean visible(MemberEntry entry) {
+            String value = entry.value();
+            return filterKey.isEmpty() || value.isBlank() || value.toLowerCase(Locale.ROOT).contains(filterKey);
         }
 
         @Override public int getRowLeft() { return left; }
