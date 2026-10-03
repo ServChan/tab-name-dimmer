@@ -3,7 +3,7 @@
 [![Minecraft Version](https://img.shields.io/badge/Minecraft-26.3-brightgreen?style=flat-square&logo=minecraft)](README.md)
 [![Platform](https://img.shields.io/badge/Platform-Fabric-blue?style=flat-square&logo=fabric)](README.md)
 [![Java Target](https://img.shields.io/badge/Java-25-orange?style=flat-square&logo=openjdk)](README.md)
-[![Mod Version](https://img.shields.io/badge/Version-1.2.0-purple?style=flat-square)](README.md)
+[![Mod Version](https://img.shields.io/badge/Version-1.0.5-purple?style=flat-square)](README.md)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
 Client-side Fabric mod that organizes tracked players into global or per-server groups, then dims, filters, sorts, outlines, or shows them in a configurable Tab/HUD view, with an AFK detector and a line-of-sight cache.
@@ -66,7 +66,7 @@ Client-side Fabric mod that organizes tracked players into global or per-server 
 ### Установка
 
 1. **Fabric Loader** `0.19.3+` и **Fabric API** `0.161.0+26.3`.
-2. Скопируйте `tab-name-dimmer-1.2.0.jar` из `build/libs/` в папку `mods/`.
+2. Скопируйте `tab-name-dimmer-1.0.5.jar` из `build/libs/` в папку `mods/`.
 3. **Mod Menu** `21.0.0` — опционально, открывает экран настроек.
 
 **Требования:** Minecraft `26.3` · Java `25` · только клиент.
@@ -77,7 +77,7 @@ Client-side Fabric mod that organizes tracked players into global or per-server 
 .\gradlew.bat clean build
 ```
 
-Готовый JAR: `build/libs/tab-name-dimmer-1.2.0.jar`.
+Готовый JAR: `build/libs/tab-name-dimmer-1.0.5.jar`.
 
 ---
 
@@ -122,7 +122,7 @@ The settings screen opens through **Mod Menu** (colors, groups, modes, HUD, noti
 ### Installation
 
 1. **Fabric Loader** `0.19.3+` and **Fabric API** `0.161.0+26.3`.
-2. Copy `tab-name-dimmer-1.2.0.jar` from `build/libs/` into `mods/`.
+2. Copy `tab-name-dimmer-1.0.5.jar` from `build/libs/` into `mods/`.
 3. **Mod Menu** `21.0.0` — optional, opens the settings screen.
 
 **Requirements:** Minecraft `26.3` · Java `25` · client-only.
@@ -133,7 +133,7 @@ The settings screen opens through **Mod Menu** (colors, groups, modes, HUD, noti
 .\gradlew.bat clean build
 ```
 
-Output JAR: `build/libs/tab-name-dimmer-1.2.0.jar`.
+Output JAR: `build/libs/tab-name-dimmer-1.0.5.jar`.
 
 ## Лицензия / License
 
