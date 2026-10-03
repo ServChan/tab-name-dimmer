@@ -97,9 +97,7 @@ public class TabStateTracker {
         return Comparator
                 .comparingInt((PlayerInfo info) -> matches.get(info) == null ? Integer.MIN_VALUE : matches.get(info).priority())
                 .reversed()
-                .thenComparing(info -> matches.get(info) == null ? 1 : 0)
-                .thenComparing(info -> matches.get(info) == null ? "" : matches.get(info).group().name,
-                        String.CASE_INSENSITIVE_ORDER)
+                .thenComparingInt(info -> matches.get(info) == null ? Integer.MAX_VALUE : matches.get(info).order())
                 .thenComparing(insideGroup);
     }
 
@@ -125,7 +123,7 @@ public class TabStateTracker {
         Map<PlayerInfo, Boolean> afkPlayers = new IdentityHashMap<>();
         if (config.afkHandlingMode != TabNameDimmerConfig.AfkHandlingMode.SHOW) {
             for (PlayerInfo info : players) {
-                afkPlayers.put(info, AfkDetector.isAfk(info));
+                afkPlayers.put(info, AfkDetector.isAfkCached(info));
             }
         }
         return afkPlayers;

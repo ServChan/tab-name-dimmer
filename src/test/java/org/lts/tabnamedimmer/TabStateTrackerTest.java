@@ -99,6 +99,38 @@ class TabStateTrackerTest {
         assertEquals(List.of("Active"), sorted);
     }
 
+    @Test
+    void groupsWithEqualPriorityFollowListOrder() {
+        TabNameDimmerConfig config = new TabNameDimmerConfig();
+        config.playerSortMode = TabNameDimmerConfig.PlayerSortMode.NAME;
+        TabNameDimmerConfig.PlayerGroup zebra = config.globalProfile.groups.getFirst();
+        zebra.name = "Zebra";
+        zebra.members.add("Bob");
+        TabNameDimmerConfig.PlayerGroup alpha = TabNameDimmerConfig.PlayerGroup.defaultGroup();
+        alpha.name = "Alpha";
+        alpha.members.add("Amy");
+        config.globalProfile.groups.add(alpha);
+
+        List<String> sorted = TabStateTracker.sortedTrackedPlayers(
+                        List.of(player("Amy"), player("Bob")), config, TabNameDimmerConfig.GLOBAL_SCOPE)
+                .stream().map(info -> info.getProfile().name()).toList();
+
+        assertEquals(List.of("Bob", "Amy"), sorted);
+    }
+
+    @Test
+    void masksAddMatchingPlayersToTheGroup() {
+        TabNameDimmerConfig config = new TabNameDimmerConfig();
+        config.globalProfile.groups.getFirst().members.add("Clan_*");
+
+        List<String> sorted = TabStateTracker.sortedTrackedPlayers(
+                        List.of(player("Clan_Bob"), player("Other"), player("clan_amy")),
+                        config, TabNameDimmerConfig.GLOBAL_SCOPE)
+                .stream().map(info -> info.getProfile().name()).toList();
+
+        assertEquals(List.of("Clan_Bob", "clan_amy"), sorted);
+    }
+
     private static TabNameDimmerConfig trackedConfig() {
         TabNameDimmerConfig config = new TabNameDimmerConfig();
         config.globalProfile.groups.getFirst().members.addAll(List.of("Sleeper", "Active"));

@@ -14,12 +14,15 @@ import java.util.Locale;
 final class OnlinePlayersScreen extends Screen {
     private final Screen parent;
     private final TabNameDimmerConfig config;
+    private final TabNameDimmerConfig.Profile profile;
     private final TabNameDimmerConfig.PlayerGroup group;
 
-    OnlinePlayersScreen(Screen parent, TabNameDimmerConfig config, TabNameDimmerConfig.PlayerGroup group) {
+    OnlinePlayersScreen(Screen parent, TabNameDimmerConfig config, TabNameDimmerConfig.Profile profile,
+                        TabNameDimmerConfig.PlayerGroup group) {
         super(Component.translatable("tabnamedimmer.screen.online", group.name));
         this.parent = parent;
         this.config = config;
+        this.profile = profile;
         this.group = group;
     }
 
@@ -90,24 +93,27 @@ final class OnlinePlayersScreen extends Screen {
         private final PlayerInfo info;
         private final Button toggle;
         private final int rowWidth;
+        private boolean member;
 
         OnlineEntry(PlayerInfo info, int rowWidth) {
             this.info = info;
             this.rowWidth = rowWidth;
+            this.member = contains(info.getProfile().name());
             toggle = Button.builder(toggleLabel(), button -> {
                 String name = info.getProfile().name();
                 if (contains(name)) {
                     String key = normalize(name);
-                    group.members.removeIf(member -> normalize(member).equals(key));
+                    group.members.removeIf(existing -> normalize(existing).equals(key));
                 } else if (group.members.size() < TabNameDimmerConfig.MAX_MEMBERS_PER_GROUP) {
                     group.members.add(name);
                 }
+                member = contains(name);
                 button.setMessage(toggleLabel());
             }).bounds(0, 0, 82, 20).build();
         }
 
         private Component toggleLabel() {
-            return Component.translatable(contains(info.getProfile().name())
+            return Component.translatable(member
                     ? "tabnamedimmer.button.remove_player" : "tabnamedimmer.button.add_player",
                     info.getProfile().name());
         }
@@ -120,7 +126,18 @@ final class OnlinePlayersScreen extends Screen {
         public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float tickDelta) {
             int x = getContentX() + 6;
             int y = getContentY() + 4;
-            graphics.text(font, Component.literal(info.getProfile().name()), x, y + 2, 0xFFFFFFFF);
+            String name = info.getProfile().name();
+            graphics.text(font, Component.literal(name), x, y + 2, 0xFFFFFFFF);
+            TabNameDimmerConfig.Match match = profile.findMatch(name, config.caseSensitive);
+            if (match != null) {
+                String tagKey = match.group() != group ? "tabnamedimmer.online.in_group"
+                        : member ? "tabnamedimmer.online.in_this_group" : "tabnamedimmer.online.by_mask";
+                Component tag = Component.translatable(tagKey, match.group().name);
+                int tagX = x + font.width(name) + 8;
+                if (tagX + font.width(tag) < getContentX() + rowWidth - 154) {
+                    graphics.text(font, tag, tagX, y + 2, 0xFF000000 | match.group().color);
+                }
+            }
             String ping = info.getLatency() + " ms";
             graphics.text(font, Component.literal(ping), getContentX() + rowWidth - 150, y + 2, 0xFF8FBCBB);
             toggle.setX(getContentX() + rowWidth - 88);

@@ -22,6 +22,9 @@ public class TabNameDimmerConfigScreen extends Screen {
 
     private final Screen parent;
     private final TabNameDimmerConfig config;
+    private Button cancelButton;
+    private boolean dirty;
+    private int dirtyCheckTicks;
 
     public TabNameDimmerConfigScreen(Screen parent) {
         this(parent, TabNameDimmerConfig.currentCopy());
@@ -118,8 +121,29 @@ public class TabNameDimmerConfigScreen extends Screen {
         int actionWidth = (contentWidth - gap) / 2;
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.save"), button -> saveAndClose())
                 .bounds(left, bottom, actionWidth, FIELD_HEIGHT).build());
-        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.cancel"), button -> closeWithoutSaving())
+        cancelButton = addRenderableWidget(Button.builder(cancelLabel(), button -> closeWithoutSaving())
                 .bounds(left + actionWidth + gap, bottom, actionWidth, FIELD_HEIGHT).build());
+        refreshDirty();
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (++dirtyCheckTicks >= 5) {
+            refreshDirty();
+        }
+    }
+
+    private void refreshDirty() {
+        dirtyCheckTicks = 0;
+        dirty = !config.sameSettingsAs(TabNameDimmerConfig.current());
+        if (cancelButton != null) {
+            cancelButton.setMessage(cancelLabel());
+        }
+    }
+
+    private Component cancelLabel() {
+        return Component.translatable(dirty ? "tabnamedimmer.button.discard" : "tabnamedimmer.button.cancel");
     }
 
     private void addPair(int left, int y, int width, int gap, Button first, Button second) {
@@ -137,6 +161,9 @@ public class TabNameDimmerConfigScreen extends Screen {
         graphics.fill(0, 27, width, 28, 0xFF2E435E);
         int titleX = (width - font.width(title)) / 2;
         graphics.text(font, title, titleX, 9, 0xFFFFFFFF, true);
+        if (dirty) {
+            graphics.centeredText(font, Component.translatable("tabnamedimmer.state.unsaved"), width / 2, 31, 0xFFFFC857);
+        }
 
         graphics.centeredText(font, Component.translatable("tabnamedimmer.activation.key_hint"),
                 width / 2, height - 44, 0xFF00E5FF);
