@@ -32,6 +32,30 @@ class TabNameDimmerConfigTest {
     }
 
     @Test
+    void parsesAfkIconCodesAndLiteralSymbols() {
+        assertEquals(List.of("ꐖ", "ꐣ", "ꐟ", "💤", "☾"),
+                TabNameDimmerConfig.parseAfkIcons(" A416, U+a423 \\uA41F 1F4A4 ☾ A416 "));
+        assertEquals(List.of(), TabNameDimmerConfig.parseAfkIcons("   "));
+        assertEquals(List.of(), TabNameDimmerConfig.parseAfkIcons(null));
+    }
+
+    @Test
+    void afkIconsDefaultWhenMissingAndKeepEmptyValue() {
+        TabNameDimmerConfig missing = TabNameDimmerConfig.fromJsonForTests("""
+                {"schemaVersion": 2}
+                """);
+        assertEquals(TabNameDimmerConfig.DEFAULT_AFK_ICONS, missing.afkIcons);
+        assertEquals(List.of("ꐖ"), missing.afkIconList());
+
+        TabNameDimmerConfig empty = TabNameDimmerConfig.fromJsonForTests("""
+                {"schemaVersion": 2, "afkIcons": ""}
+                """);
+        assertEquals("", empty.afkIcons);
+        assertEquals(List.of(), empty.afkIconList());
+        assertEquals("", empty.copy().afkIcons);
+    }
+
+    @Test
     void serverProfileOverridesGlobalAndFallsBackWhenMissing() {
         TabNameDimmerConfig config = new TabNameDimmerConfig();
         config.globalProfile.groups.getFirst().members.add("GlobalPlayer");

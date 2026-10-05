@@ -20,6 +20,10 @@
   "tabnamedimmer.afk.show": "Mostrar normalmente",
   "tabnamedimmer.afk.move_to_end": "Mover al final",
   "tabnamedimmer.afk.hide": "Ocultar",
+  "tabnamedimmer.option.afk_icons": "Icono AFK en Tab:",
+  "tabnamedimmer.field.afk_icons": "Códigos de iconos AFK",
+  "tabnamedimmer.hint.afk_icons": "ninguno, solo texto [AFK]",
+  "tabnamedimmer.tooltip.afk_icons": "Código del símbolo del paquete de recursos del servidor (A416, U+A416) o el propio símbolo. Separa varios con espacios. Déjalo vacío para usar solo marcas de texto como [AFK] y zzz.",
   "tabnamedimmer.option.mode": "Modo: %s",
   "tabnamedimmer.option.profile": "Editando: %s",
   "tabnamedimmer.option.group": "Grupo: %s (%s/%s)",
@@ -116,5 +120,5 @@
   "tabnamedimmer.tooltip.priority": "Si un jugador está en varios grupos, gana la prioridad más alta y aparece más arriba en Tab. Pulsa para volver a 0.",
   "tabnamedimmer.tooltip.sort_members": "Ordena los nombres alfabéticamente y elimina duplicados.",
   "tabnamedimmer.button.discard": "Descartar cambios",
-  "tabnamedimmer.state.unsaved": "Cambios sin guardar: pulsa Guardar para aplicarlos"
+  "tabnamedimmer.state.unsaved": "Cambios sin guardar: Guardar o Esc los aplica"
 }

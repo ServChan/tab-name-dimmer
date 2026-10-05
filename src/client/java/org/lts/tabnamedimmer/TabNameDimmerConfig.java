@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class TabNameDimmerConfig {
@@ -37,6 +38,10 @@ public class TabNameDimmerConfig {
     public static final int MAX_MEMBERS_PER_GROUP = 4096;
     public static final int MIN_PRIORITY = -1000;
     public static final int MAX_PRIORITY = 1000;
+    public static final String DEFAULT_AFK_ICONS = "A416";
+    public static final int MAX_AFK_ICONS_LENGTH = 64;
+    private static final Pattern AFK_ICON_CODE = Pattern.compile("(?i)(?:\\\\u|u\\+|0x)?([0-9a-f]{4,6})");
+    private static final Pattern AFK_ICON_SEPARATOR = Pattern.compile("[\\s,;]+");
     private static final int MAX_TOTAL_MEMBERS_PER_PROFILE = 8192;
     private static final int MAX_SERVER_PROFILES = 128;
 
@@ -81,6 +86,7 @@ public class TabNameDimmerConfig {
     public ActivationMode activationMode = ActivationMode.HOLD_SHIFT;
     public PlayerSortMode playerSortMode = PlayerSortMode.ORIGINAL;
     public AfkHandlingMode afkHandlingMode = AfkHandlingMode.SHOW;
+    public String afkIcons = DEFAULT_AFK_ICONS;
     public float animationSpeed = 0.05F;
     public HudAnchor hudAnchor = HudAnchor.BOTTOM_CENTER;
     public int hudColumns = 1;
@@ -89,6 +95,11 @@ public class TabNameDimmerConfig {
     public boolean hudShowPing = true;
     public Profile globalProfile = Profile.defaultProfile();
     public Map<String, Profile> serverProfiles = new LinkedHashMap<>();
+
+    private transient volatile AfkIconCache afkIconCache;
+
+    private record AfkIconCache(String text, List<String> icons) {
+    }
 
     public static final class Profile {
         public String name = "Global";
@@ -471,6 +482,38 @@ public class TabNameDimmerConfig {
         return enabled && findMatch(playerName, scope) == null;
     }
 
+    public List<String> afkIconList() {
+        String text = afkIcons;
+        AfkIconCache cache = afkIconCache;
+        if (cache == null || !Objects.equals(cache.text(), text)) {
+            cache = new AfkIconCache(text, parseAfkIcons(text));
+            afkIconCache = cache;
+        }
+        return cache.icons();
+    }
+
+    public static List<String> parseAfkIcons(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+        Set<String> icons = new LinkedHashSet<>();
+        for (String token : AFK_ICON_SEPARATOR.split(text.trim())) {
+            if (token.isEmpty()) {
+                continue;
+            }
+            Matcher code = AFK_ICON_CODE.matcher(token);
+            if (code.matches()) {
+                int codePoint = Integer.parseInt(code.group(1), 16);
+                if (Character.isValidCodePoint(codePoint)) {
+                    icons.add(Character.toString(codePoint));
+                    continue;
+                }
+            }
+            icons.add(token);
+        }
+        return List.copyOf(icons);
+    }
+
     public boolean sameSettingsAs(TabNameDimmerConfig other) {
         return other != null && GSON.toJsonTree(this).equals(GSON.toJsonTree(other));
     }
@@ -490,6 +533,7 @@ public class TabNameDimmerConfig {
         copy.activationMode = activationMode;
         copy.playerSortMode = playerSortMode;
         copy.afkHandlingMode = afkHandlingMode;
+        copy.afkIcons = afkIcons;
         copy.animationSpeed = animationSpeed;
         copy.hudAnchor = hudAnchor;
         copy.hudColumns = hudColumns;
@@ -559,6 +603,7 @@ public class TabNameDimmerConfig {
         config.activationMode = config.activationMode == null ? ActivationMode.HOLD_SHIFT : config.activationMode;
         config.playerSortMode = config.playerSortMode == null ? PlayerSortMode.ORIGINAL : config.playerSortMode;
         config.afkHandlingMode = config.afkHandlingMode == null ? AfkHandlingMode.SHOW : config.afkHandlingMode;
+        config.afkIcons = config.afkIcons == null ? DEFAULT_AFK_ICONS : trimToLength(config.afkIcons, MAX_AFK_ICONS_LENGTH);
         config.hudAnchor = config.hudAnchor == null ? HudAnchor.BOTTOM_CENTER : config.hudAnchor;
         config.animationSpeed = clampFinite(config.animationSpeed, 0.05F, 0.001F, 1.0F);
         config.dimOpacity = clampFinite(config.dimOpacity, 0.3F, 0.05F, 1.0F);

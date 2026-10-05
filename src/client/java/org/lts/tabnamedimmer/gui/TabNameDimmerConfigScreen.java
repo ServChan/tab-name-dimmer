@@ -3,6 +3,8 @@ package org.lts.tabnamedimmer.gui;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.toasts.SystemToast;
 import net.minecraft.client.gui.components.toasts.ToastManager;
 import net.minecraft.client.gui.screens.Screen;
@@ -16,6 +18,9 @@ import java.util.Locale;
 
 public class TabNameDimmerConfigScreen extends Screen {
     private static final int FIELD_HEIGHT = 20;
+    private static final int FIRST_ROW_Y = 42;
+    private static final int ROW_COUNT = 8;
+    private static final int BOTTOM_RESERVED = 52;
     private static final float[] OPACITY_PRESETS = {0.15F, 0.3F, 0.5F, 0.75F, 1.0F};
     private static final float[] SPEED_PRESETS = {0.01F, 0.025F, 0.05F, 0.1F, 0.2F};
     private static final SystemToast.SystemToastId SAVE_TOAST_ID = new SystemToast.SystemToastId();
@@ -25,6 +30,9 @@ public class TabNameDimmerConfigScreen extends Screen {
     private Button cancelButton;
     private boolean dirty;
     private int dirtyCheckTicks;
+    private int afkIconsLabelX;
+    private int afkIconsLabelY;
+    private int afkIconsLabelWidth;
 
     public TabNameDimmerConfigScreen(Screen parent) {
         this(parent, TabNameDimmerConfig.currentCopy());
@@ -42,7 +50,8 @@ public class TabNameDimmerConfigScreen extends Screen {
         int left = (width - contentWidth) / 2;
         int gap = 8;
         int columnWidth = (contentWidth - gap) / 2;
-        int y = 42;
+        int y = FIRST_ROW_Y;
+        int rowStep = rowStep();
 
         addPair(left, y, columnWidth, gap,
                 Button.builder(enabledLabel(), button -> {
@@ -53,7 +62,7 @@ public class TabNameDimmerConfigScreen extends Screen {
                     config.displayMode = next(config.displayMode, TabNameDimmerConfig.DisplayMode.values());
                     button.setMessage(modeLabel());
                 }).build());
-        y += 24;
+        y += rowStep;
 
         addPair(left, y, columnWidth, gap,
                 Button.builder(caseSensitiveLabel(), button -> {
@@ -64,7 +73,7 @@ public class TabNameDimmerConfigScreen extends Screen {
                     config.activationMode = next(config.activationMode, TabNameDimmerConfig.ActivationMode.values());
                     button.setMessage(activationLabel());
                 }).build());
-        y += 24;
+        y += rowStep;
 
         addPair(left, y, columnWidth, gap,
                 Button.builder(notificationsLabel(), button -> {
@@ -75,7 +84,7 @@ public class TabNameDimmerConfigScreen extends Screen {
                     config.playerTransparencyEnabled = !config.playerTransparencyEnabled;
                     button.setMessage(transparencyLabel());
                 }).build());
-        y += 24;
+        y += rowStep;
 
         addPair(left, y, columnWidth, gap,
                 Button.builder(compactNotificationsLabel(), button -> {
@@ -86,7 +95,7 @@ public class TabNameDimmerConfigScreen extends Screen {
                     config.notificationSoundsEnabled = !config.notificationSoundsEnabled;
                     button.setMessage(notificationSoundsLabel());
                 }).build());
-        y += 24;
+        y += rowStep;
 
         addPair(left, y, columnWidth, gap,
                 Button.builder(opacityLabel(), button -> {
@@ -97,7 +106,7 @@ public class TabNameDimmerConfigScreen extends Screen {
                     config.animationSpeed = nextPreset(config.animationSpeed, SPEED_PRESETS);
                     button.setMessage(speedLabel());
                 }).build());
-        y += 24;
+        y += rowStep;
 
         addPair(left, y, columnWidth, gap,
                 Button.builder(sortLabel(), button -> {
@@ -108,7 +117,20 @@ public class TabNameDimmerConfigScreen extends Screen {
                     config.afkHandlingMode = next(config.afkHandlingMode, TabNameDimmerConfig.AfkHandlingMode.values());
                     button.setMessage(afkHandlingLabel());
                 }).build());
-        y += 24;
+        y += rowStep;
+
+        afkIconsLabelX = left;
+        afkIconsLabelY = y + (FIELD_HEIGHT - font.lineHeight) / 2 + 1;
+        afkIconsLabelWidth = columnWidth;
+        EditBox afkIconsField = new EditBox(font, left + columnWidth + gap, y, columnWidth, FIELD_HEIGHT,
+                Component.translatable("tabnamedimmer.field.afk_icons"));
+        afkIconsField.setMaxLength(TabNameDimmerConfig.MAX_AFK_ICONS_LENGTH);
+        afkIconsField.setValue(config.afkIcons);
+        afkIconsField.setHint(Component.translatable("tabnamedimmer.hint.afk_icons"));
+        afkIconsField.setTooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.afk_icons")));
+        afkIconsField.setResponder(value -> config.afkIcons = value.trim());
+        addRenderableWidget(afkIconsField);
+        y += rowStep;
 
         addPair(left, y, columnWidth, gap,
                 Button.builder(Component.translatable("tabnamedimmer.button.manage_groups"), button ->
@@ -146,6 +168,11 @@ public class TabNameDimmerConfigScreen extends Screen {
         return Component.translatable(dirty ? "tabnamedimmer.button.discard" : "tabnamedimmer.button.cancel");
     }
 
+    private int rowStep() {
+        int available = height - BOTTOM_RESERVED - FIRST_ROW_Y - FIELD_HEIGHT;
+        return Math.max(FIELD_HEIGHT + 1, Math.min(24, available / (ROW_COUNT - 1)));
+    }
+
     private void addPair(int left, int y, int width, int gap, Button first, Button second) {
         first.setRectangle(width, FIELD_HEIGHT, left, y);
         second.setRectangle(width, FIELD_HEIGHT, left + width + gap, y);
@@ -165,6 +192,10 @@ public class TabNameDimmerConfigScreen extends Screen {
             graphics.centeredText(font, Component.translatable("tabnamedimmer.state.unsaved"), width / 2, 31, 0xFFFFC857);
         }
 
+        String afkIconsLabel = font.plainSubstrByWidth(
+                Component.translatable("tabnamedimmer.option.afk_icons").getString(), afkIconsLabelWidth);
+        graphics.text(font, Component.literal(afkIconsLabel), afkIconsLabelX, afkIconsLabelY, 0xFFE0E6EE, false);
+
         graphics.centeredText(font, Component.translatable("tabnamedimmer.activation.key_hint"),
                 width / 2, height - 44, 0xFF00E5FF);
         super.extractRenderState(graphics, mouseX, mouseY, tickDelta);
@@ -181,7 +212,11 @@ public class TabNameDimmerConfigScreen extends Screen {
 
     @Override
     public void onClose() {
-        closeWithoutSaving();
+        if (config.sameSettingsAs(TabNameDimmerConfig.current())) {
+            closeWithoutSaving();
+        } else {
+            saveAndClose();
+        }
     }
 
     private void saveAndClose() {

@@ -12,6 +12,7 @@ import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -19,7 +20,6 @@ import java.util.regex.Pattern;
 
 public final class AfkDetector {
 
-    private static final String VANILLASQUAD_SLEEP_ICON = "\uA423";
     private static final Pattern EXPLICIT_MARKER = Pattern.compile(
             "(?iu)(?:^|[^\\p{L}\\p{N}_])(?:afk|away)(?:$|[^\\p{L}\\p{N}_])");
     private static final Pattern PREFIX_MARKER = Pattern.compile(
@@ -53,6 +53,10 @@ public final class AfkDetector {
     }
 
     static boolean isAfk(PlayerInfo info, Component playerListObjectiveValue) {
+        return isAfk(info, playerListObjectiveValue, configuredIcons());
+    }
+
+    static boolean isAfk(PlayerInfo info, Component playerListObjectiveValue, List<String> icons) {
         if (info == null || info.getProfile() == null) {
             return false;
         }
@@ -60,14 +64,14 @@ public final class AfkDetector {
         if (playerName == null || playerName.isBlank()) {
             return false;
         }
-        if (hasUnambiguousSleepMarker(playerListObjectiveValue)) {
+        if (hasUnambiguousSleepMarker(playerListObjectiveValue, icons)) {
             return true;
         }
         Component serverName = info.getTabListDisplayName();
         if (serverName == null) {
             serverName = PlayerTeam.formatNameForTeam(info.getTeam(), Component.literal(playerName));
         }
-        return isAfk(playerName, serverName);
+        return isAfk(playerName, serverName, icons);
     }
 
     static Component playerListObjectiveValue(PlayerInfo info) {
@@ -92,13 +96,17 @@ public final class AfkDetector {
     }
 
     static boolean isAfk(String playerName, Component displayName) {
+        return isAfk(playerName, displayName, configuredIcons());
+    }
+
+    static boolean isAfk(String playerName, Component displayName, List<String> icons) {
         if (playerName == null || playerName.isBlank() || displayName == null) {
             return false;
         }
 
         String visibleName = displayName.getString();
 
-        if (visibleName.contains(VANILLASQUAD_SLEEP_ICON)) {
+        if (containsAny(withoutAccountName(visibleName, playerName), icons)) {
             return true;
         }
 
@@ -123,8 +131,31 @@ public final class AfkDetector {
         return false;
     }
 
-    private static boolean hasUnambiguousSleepMarker(Component component) {
-        return component != null && (component.getString().contains(VANILLASQUAD_SLEEP_ICON)
+    private static boolean hasUnambiguousSleepMarker(Component component, List<String> icons) {
+        return component != null && (containsAny(component.getString(), icons)
                 || component.getString().contains("💤"));
+    }
+
+    private static List<String> configuredIcons() {
+        return TabNameDimmerConfig.current().afkIconList();
+    }
+
+    private static boolean containsAny(String text, List<String> icons) {
+        for (String icon : icons) {
+            if (text.contains(icon)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String withoutAccountName(String visibleName, String playerName) {
+        int length = playerName.length();
+        for (int start = 0; start + length <= visibleName.length(); start++) {
+            if (visibleName.regionMatches(true, start, playerName, 0, length)) {
+                return visibleName.substring(0, start) + visibleName.substring(start + length);
+            }
+        }
+        return visibleName;
     }
 }

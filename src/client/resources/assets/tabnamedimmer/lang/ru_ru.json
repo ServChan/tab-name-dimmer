@@ -20,6 +20,10 @@
   "tabnamedimmer.afk.show": "Как обычно",
   "tabnamedimmer.afk.move_to_end": "В конец",
   "tabnamedimmer.afk.hide": "Скрыть",
+  "tabnamedimmer.option.afk_icons": "Значок AFK в Tab:",
+  "tabnamedimmer.field.afk_icons": "Коды значков AFK",
+  "tabnamedimmer.hint.afk_icons": "нет, только текст [AFK]",
+  "tabnamedimmer.tooltip.afk_icons": "Код символа из ресурс-пака сервера (A416, U+A416) или сам символ. Несколько — через пробел. Пустое поле — узнавать только текстовые метки вроде [AFK] и zzz.",
   "tabnamedimmer.option.mode": "Режим: %s",
   "tabnamedimmer.option.profile": "Редактируется: %s",
   "tabnamedimmer.option.group": "Группа: %s (%s/%s)",
@@ -116,5 +120,5 @@
   "tabnamedimmer.tooltip.priority": "Если игрок состоит в нескольких группах, побеждает группа с наибольшим приоритетом; она же выше в Tab. Нажмите, чтобы сбросить на 0.",
   "tabnamedimmer.tooltip.sort_members": "Отсортировать ники по алфавиту и убрать повторы.",
   "tabnamedimmer.button.discard": "Отменить изменения",
-  "tabnamedimmer.state.unsaved": "Есть несохранённые изменения: нажмите «Сохранить», чтобы применить"
+  "tabnamedimmer.state.unsaved": "Есть несохранённые изменения: «Сохранить» или Esc применит их"
 }

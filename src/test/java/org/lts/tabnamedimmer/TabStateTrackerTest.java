@@ -53,7 +53,7 @@ class TabStateTrackerTest {
         TabNameDimmerConfig config = trackedConfig();
         config.afkHandlingMode = TabNameDimmerConfig.AfkHandlingMode.MOVE_TO_END;
         PlayerTeam afkTeam = new Scoreboard().addPlayerTeam("afk");
-        afkTeam.setPlayerSuffix(Component.literal(" \uA423"));
+        afkTeam.setPlayerSuffix(Component.literal(" \uA416"));
 
         List<PlayerInfo> players = List.of(
                 player("Sleeper", 20, null, afkTeam),
@@ -89,7 +89,7 @@ class TabStateTrackerTest {
         config.globalProfile.groups.getFirst().members.addAll(List.of("Aell_", "Active"));
 
         List<PlayerInfo> players = List.of(
-                player("Aell_", 20, Component.literal("Aell \uA423")),
+                player("Aell_", 20, Component.literal("Aell \uA416")),
                 player("Active", 30, Component.literal("Active")));
 
         List<String> sorted = TabStateTracker.sortedTrackedPlayers(
