@@ -8,12 +8,10 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class TabNameDimmerClient implements ClientModInitializer {
     public static final String MOD_ID = "tabnamedimmer";
-    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    public static final ModLog LOGGER = ModLog.root();
     private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(
             Identifier.fromNamespaceAndPath(MOD_ID, "main"));
     private static KeyMapping activationKey;
@@ -48,6 +46,7 @@ public class TabNameDimmerClient implements ClientModInitializer {
             AfkDetector.clearCache();
             tabListOpen = false;
         });
+        LOGGER.ready();
     }
 
     public static boolean isShiftDown() {

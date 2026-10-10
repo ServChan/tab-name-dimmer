@@ -5,8 +5,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -45,7 +43,7 @@ public class TabNameDimmerConfig {
     private static final int MAX_TOTAL_MEMBERS_PER_PROFILE = 8192;
     private static final int MAX_SERVER_PROFILES = 128;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("tabnamedimmer");
+    private static final ModLog LOGGER = ModLog.of("Config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Object IO_LOCK = new Object();
     private static volatile TabNameDimmerConfig instance = defaults();
@@ -337,13 +335,13 @@ public class TabNameDimmerConfig {
             Path configPath = configPath();
             if (!Files.exists(configPath)) {
                 if (Files.isRegularFile(backupPath())) {
-                    LOGGER.warn("The Tab Name Dimmer configuration is missing; restoring it from the backup");
+                    LOGGER.warn("Config is missing; restoring it from the backup");
                     instance = loadBackup();
                     lastModified = currentModifiedTime();
                     return instance;
                 }
                 if (!save(defaults())) {
-                    LOGGER.warn("Failed to create the Tab Name Dimmer configuration");
+                    LOGGER.warn("Could not create {}", configPath);
                 }
             }
             try (Reader reader = Files.newBufferedReader(configPath)) {
@@ -352,7 +350,7 @@ public class TabNameDimmerConfig {
                 instance = sanitize(loaded == null ? defaults() : loaded);
                 lastModified = Files.getLastModifiedTime(configPath).toMillis();
             } catch (IOException | RuntimeException exception) {
-                LOGGER.warn("Failed to load the Tab Name Dimmer configuration; using recovery", exception);
+                LOGGER.warn("Could not read {}; restoring it from the backup", configPath, exception);
                 instance = loadBackup();
                 lastModified = currentModifiedTime();
             }
@@ -380,7 +378,7 @@ public class TabNameDimmerConfig {
                 }
             }
         } catch (RuntimeException exception) {
-            LOGGER.warn("Failed to reload the Tab Name Dimmer configuration", exception);
+            LOGGER.warn("Could not reload {}", configPath(), exception);
         }
     }
 
@@ -433,7 +431,7 @@ public class TabNameDimmerConfig {
                 return sanitizeProfile(transfer.profile, "Imported");
             }
         } catch (IOException | RuntimeException exception) {
-            LOGGER.warn("Failed to import a Tab Name Dimmer profile", exception);
+            LOGGER.warn("Could not import profile {}", path, exception);
             return null;
         }
     }
@@ -743,11 +741,11 @@ public class TabNameDimmerConfig {
                 }
                 Files.copy(backupPath, configPath, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException exception) {
-                LOGGER.warn("Failed to restore the primary Tab Name Dimmer configuration", exception);
+                LOGGER.warn("Could not restore {} from the backup", configPath, exception);
             }
             return recovered;
         } catch (IOException | RuntimeException exception) {
-            LOGGER.warn("Failed to recover the Tab Name Dimmer configuration backup", exception);
+            LOGGER.warn("Could not read backup {}; using defaults", backupPath, exception);
             return defaults();
         }
     }
@@ -769,11 +767,11 @@ public class TabNameDimmerConfig {
             }
             return true;
         } catch (IOException exception) {
-            LOGGER.warn("Failed to write Tab Name Dimmer JSON data", exception);
+            LOGGER.warn("Could not write {}", path, exception);
             try {
                 Files.deleteIfExists(temporary);
             } catch (IOException cleanupException) {
-                LOGGER.debug("Failed to clean a temporary Tab Name Dimmer file", cleanupException);
+                LOGGER.debug("Could not delete temporary file {}", temporary, cleanupException);
             }
             return false;
         }

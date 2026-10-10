@@ -182,7 +182,7 @@ final class GroupMembersScreen extends Screen {
             saveMembers();
             status = Component.translatable("tabnamedimmer.import.added", added).getString();
         } catch (IOException | RuntimeException exception) {
-            TabNameDimmerClient.LOGGER.warn("Failed to import the selected name list", exception);
+            TabNameDimmerClient.LOGGER.warn("Could not import names from {}", path, exception);
             status = Component.translatable("tabnamedimmer.import.failed").getString();
         }
     }
@@ -226,7 +226,7 @@ final class GroupMembersScreen extends Screen {
         try {
             FileDialogs.openFile(minecraft, multiple, onSelected);
         } catch (LinkageError | RuntimeException exception) {
-            TabNameDimmerClient.LOGGER.warn("Unable to open a file dialog for {}", titleKey, exception);
+            TabNameDimmerClient.LOGGER.warn("Could not open a file dialog for {}", titleKey, exception);
             status = Component.translatable("tabnamedimmer.import.no_dialog").getString();
         }
     }
@@ -235,7 +235,7 @@ final class GroupMembersScreen extends Screen {
         try {
             FileDialogs.saveFile(minecraft, "tabnamedimmer-profile.json", onSelected);
         } catch (LinkageError | RuntimeException exception) {
-            TabNameDimmerClient.LOGGER.warn("Unable to open a save dialog", exception);
+            TabNameDimmerClient.LOGGER.warn("Could not open a save dialog", exception);
             status = Component.translatable("tabnamedimmer.import.no_dialog").getString();
         }
     }

@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -42,6 +43,12 @@ class OnlinePlayerTrackerTest {
 
     private static TrackedPlayer player(UUID uuid, String name, Component serverDisplayName) {
         return new TrackedPlayer(uuid, name, serverDisplayName);
+    }
+
+    private void runChecks(int count, Map<UUID, TrackedPlayer> players, Consumer<PresenceChange> sounds) {
+        for (int i = 0; i < count; i++) {
+            tracker.processTick(SCOPE, players, config, sentMessages::add, sounds);
+        }
     }
 
     @Test
@@ -104,6 +111,9 @@ class OnlinePlayerTrackerTest {
 
         Map<UUID, TrackedPlayer> players2 = Map.of(untrackedUuid, player(untrackedUuid, "UntrackedUser"));
         tracker.processTick(SCOPE, players2, config, sentMessages::add);
+        assertTrue(sentMessages.isEmpty(), "Leave notification waits for the grace period");
+
+        runChecks(OnlinePlayerTracker.LEAVE_GRACE_CHECKS, players2, sounds -> {});
 
         assertEquals(1, sentMessages.size());
         Component message = sentMessages.getFirst();
@@ -143,6 +153,7 @@ class OnlinePlayerTrackerTest {
         joined.put(trackedUuid, player(trackedUuid, "TrackedUser"));
         tracker.processTick(SCOPE, joined, config, sentMessages::add, sounds::add);
         tracker.processTick(SCOPE, baseline, config, sentMessages::add, sounds::add);
+        runChecks(OnlinePlayerTracker.LEAVE_GRACE_CHECKS, baseline, sounds::add);
 
         assertEquals(List.of(PresenceChange.JOINED, PresenceChange.LEFT), sounds);
     }
@@ -196,5 +207,46 @@ class OnlinePlayerTrackerTest {
         tracker.processTick("multiplayer:other.server.com", players2, config, sentMessages::add);
 
         assertTrue(sentMessages.isEmpty(), "Changing server scope should reset baseline without join notifications");
+    }
+
+    @Test
+    void worldSwitchWithinGracePeriodIsSilent() {
+        Map<UUID, TrackedPlayer> online = new LinkedHashMap<>();
+        online.put(untrackedUuid, player(untrackedUuid, "UntrackedUser"));
+        online.put(trackedUuid, player(trackedUuid, "TrackedUser"));
+        Map<UUID, TrackedPlayer> switching = Map.of(untrackedUuid, player(untrackedUuid, "UntrackedUser"));
+
+        tracker.processTick(SCOPE, online, config, sentMessages::add);
+        tracker.processTick(SCOPE, switching, config, sentMessages::add);
+        runChecks(OnlinePlayerTracker.LEAVE_GRACE_CHECKS - 1, switching, ignored -> {});
+        tracker.processTick(SCOPE, online, config, sentMessages::add);
+        runChecks(OnlinePlayerTracker.LEAVE_GRACE_CHECKS * 2, online, ignored -> {});
+
+        assertTrue(sentMessages.isEmpty(), "Leaving and returning within the grace period is a world switch");
+    }
+
+    @Test
+    void leaveIsReportedOnceAfterGracePeriod() {
+        Map<UUID, TrackedPlayer> online = Map.of(trackedUuid, player(trackedUuid, "TrackedUser"));
+        tracker.processTick(SCOPE, online, config, sentMessages::add);
+        tracker.processTick(SCOPE, Map.of(), config, sentMessages::add);
+
+        runChecks(OnlinePlayerTracker.LEAVE_GRACE_CHECKS - 1, Map.of(), ignored -> {});
+        assertTrue(sentMessages.isEmpty());
+
+        runChecks(OnlinePlayerTracker.LEAVE_GRACE_CHECKS * 2, Map.of(), ignored -> {});
+        assertEquals(1, sentMessages.size());
+    }
+
+    @Test
+    void scopeChangeDropsPendingLeave() {
+        tracker.processTick(SCOPE, Map.of(trackedUuid, player(trackedUuid, "TrackedUser")), config, sentMessages::add);
+        tracker.processTick(SCOPE, Map.of(), config, sentMessages::add);
+        tracker.processTick("multiplayer:other.server.com", Map.of(), config, sentMessages::add);
+        for (int i = 0; i < OnlinePlayerTracker.LEAVE_GRACE_CHECKS * 2; i++) {
+            tracker.processTick("multiplayer:other.server.com", Map.of(), config, sentMessages::add);
+        }
+
+        assertTrue(sentMessages.isEmpty());
     }
 }

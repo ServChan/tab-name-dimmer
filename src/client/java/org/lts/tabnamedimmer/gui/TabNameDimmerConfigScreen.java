@@ -243,7 +243,7 @@ public class TabNameDimmerConfigScreen extends Screen {
             SystemToast.addOrUpdate(manager, SAVE_TOAST_ID,
                     Component.translatable("tabnamedimmer.toast.saved.title"), Component.translatable(descriptionKey));
         } catch (ReflectiveOperationException exception) {
-            TabNameDimmerClient.LOGGER.warn("Unable to show the save notification", exception);
+            TabNameDimmerClient.LOGGER.warn("Could not show the save notification", exception);
         }
     }
 

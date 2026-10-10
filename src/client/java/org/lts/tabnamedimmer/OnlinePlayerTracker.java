@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.sounds.SoundEvents;
 
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -27,7 +28,12 @@ public final class OnlinePlayerTracker {
         JOINED, LEFT
     }
 
+    static final int LEAVE_GRACE_CHECKS = 10;
+
+    private record PendingLeave(TrackedPlayer player, int remainingChecks) {}
+
     private final Map<UUID, TrackedPlayer> previousPlayers = new LinkedHashMap<>();
+    private final Map<UUID, PendingLeave> pendingLeaves = new LinkedHashMap<>();
     private String previousScope = "";
     private int ticks;
     private boolean initialized;
@@ -77,28 +83,57 @@ public final class OnlinePlayerTracker {
             previousScope = scope;
             previousPlayers.clear();
             previousPlayers.putAll(currentPlayers);
+            pendingLeaves.clear();
             initialized = true;
             return;
         }
 
-        if (config.enabled && config.notificationsEnabled) {
-            currentPlayers.forEach((uuid, player) -> {
-                if (!previousPlayers.containsKey(uuid) && config.findMatch(player.name(), scope) != null) {
-                    Component styledName = formatPlayerName(player.name(), player.serverDisplayName(), config, scope);
-                    messageSender.accept(createNotification(PresenceChange.JOINED, styledName, config.compactNotifications));
-                    playNotificationSound(config, soundPlayer, PresenceChange.JOINED);
-                }
-            });
-            previousPlayers.forEach((uuid, player) -> {
-                if (!currentPlayers.containsKey(uuid) && config.findMatch(player.name(), scope) != null) {
-                    Component styledName = formatPlayerName(player.name(), player.serverDisplayName(), config, scope);
-                    messageSender.accept(createNotification(PresenceChange.LEFT, styledName, config.compactNotifications));
-                    playNotificationSound(config, soundPlayer, PresenceChange.LEFT);
-                }
-            });
+        if (!config.enabled || !config.notificationsEnabled) {
+            pendingLeaves.clear();
+            previousPlayers.clear();
+            previousPlayers.putAll(currentPlayers);
+            return;
         }
+
+        currentPlayers.forEach((uuid, player) -> {
+            if (previousPlayers.containsKey(uuid)) {
+                return;
+            }
+            boolean returnedFromWorldSwitch = pendingLeaves.remove(uuid) != null;
+            if (!returnedFromWorldSwitch && config.findMatch(player.name(), scope) != null) {
+                notify(PresenceChange.JOINED, player, config, scope, messageSender, soundPlayer);
+            }
+        });
+
+        Iterator<Map.Entry<UUID, PendingLeave>> pending = pendingLeaves.entrySet().iterator();
+        while (pending.hasNext()) {
+            Map.Entry<UUID, PendingLeave> entry = pending.next();
+            int remaining = entry.getValue().remainingChecks() - 1;
+            if (remaining > 0) {
+                entry.setValue(new PendingLeave(entry.getValue().player(), remaining));
+                continue;
+            }
+            pending.remove();
+            TrackedPlayer player = entry.getValue().player();
+            if (config.findMatch(player.name(), scope) != null) {
+                notify(PresenceChange.LEFT, player, config, scope, messageSender, soundPlayer);
+            }
+        }
+
+        previousPlayers.forEach((uuid, player) -> {
+            if (!currentPlayers.containsKey(uuid)) {
+                pendingLeaves.put(uuid, new PendingLeave(player, LEAVE_GRACE_CHECKS));
+            }
+        });
         previousPlayers.clear();
         previousPlayers.putAll(currentPlayers);
+    }
+
+    private static void notify(PresenceChange change, TrackedPlayer player, TabNameDimmerConfig config, String scope,
+                               Consumer<Component> messageSender, Consumer<PresenceChange> soundPlayer) {
+        Component styledName = formatPlayerName(player.name(), player.serverDisplayName(), config, scope);
+        messageSender.accept(createNotification(change, styledName, config.compactNotifications));
+        playNotificationSound(config, soundPlayer, change);
     }
 
     static Component createNotification(PresenceChange change, Component styledName, boolean compact) {
@@ -145,6 +180,7 @@ public final class OnlinePlayerTracker {
 
     public void clear() {
         previousPlayers.clear();
+        pendingLeaves.clear();
         previousScope = "";
         ticks = 0;
         initialized = false;
