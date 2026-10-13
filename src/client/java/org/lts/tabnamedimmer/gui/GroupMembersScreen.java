@@ -25,7 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
 
-final class GroupMembersScreen extends Screen {
+final class GroupMembersScreen extends FramedScreen {
     private static final int ROW_HEIGHT = 26;
     private final Screen parent;
     private final TabNameDimmerConfig config;
@@ -52,7 +52,7 @@ final class GroupMembersScreen extends Screen {
         int left = (width - contentWidth) / 2;
         int gap = 6;
         int buttonWidth = (contentWidth - gap) / 2;
-        int y = 38;
+        int y = HEADER + 5;
 
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.quick_add"), button -> {
             saveMembers();
@@ -99,7 +99,7 @@ final class GroupMembersScreen extends Screen {
         }).bounds(left + buttonWidth + gap * 2 + quarterWidth, y + 48, buttonWidth - quarterWidth - gap, 20).build());
 
         int listTop = y + 74;
-        int listHeight = Math.max(20, height - listTop - 42);
+        int listHeight = Math.max(20, height - listTop - FOOTER);
         memberList = new MemberList(left, listTop, contentWidth, listHeight);
         memberList.setFilter(filter);
         addRenderableWidget(memberList);
@@ -110,21 +110,19 @@ final class GroupMembersScreen extends Screen {
 
         int doneWidth = Math.min(200, Math.max(1, width - 20));
         addRenderableWidget(Button.builder(Component.translatable("gui.done"), button -> onClose())
-                .bounds((width - doneWidth) / 2, height - 30, doneWidth, 20).build());
+                .bounds((width - doneWidth) / 2, footerButtonsY(), doneWidth, 20).build());
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
-        graphics.fill(0, 0, width, height, 0xF00D141F);
-
-        graphics.fill(0, 0, width, 28, 0xFF182638);
-        graphics.fill(0, 27, width, 28, 0xFF2E435E);
-        graphics.centeredText(font, title, width / 2, 9, 0xFFFFFFFF);
-        Component line = status.isBlank()
+    protected Component subtitle() {
+        return status.isBlank()
                 ? Component.translatable("tabnamedimmer.members.count", memberList == null ? 0 : memberList.count())
                 : Component.literal(status);
-        graphics.centeredText(font, line, width / 2, 29, 0xFF88C0D0);
-        super.extractRenderState(graphics, mouseX, mouseY, tickDelta);
+    }
+
+    @Override
+    protected int subtitleColor() {
+        return status.isBlank() ? TEXT_DIM : NOTICE;
     }
 
     @Override

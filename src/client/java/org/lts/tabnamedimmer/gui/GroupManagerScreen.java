@@ -1,24 +1,35 @@
 package org.lts.tabnamedimmer.gui;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.ObjectSelectionList;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import org.lts.tabnamedimmer.TabNameDimmerClient;
 import org.lts.tabnamedimmer.TabNameDimmerConfig;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.IntSupplier;
 
-final class GroupManagerScreen extends Screen {
+final class GroupManagerScreen extends FramedScreen {
     private static final int[] PRESET_COLORS = {
             0x55FF55, 0x55FFFF, 0x5555FF, 0xFF55FF, 0xFF5555, 0xFFAA00, 0xFFFF55, 0xFFFFFF,
             0x00AA00, 0x00AAAA, 0x0000AA, 0xAA00AA, 0xAA0000, 0xAAAAAA, 0x555555
     };
+    private static final int GAP = 10;
     private static final String DELETE_GROUP = "group";
     private static final String DELETE_PROFILE = "profile";
 
@@ -30,10 +41,12 @@ final class GroupManagerScreen extends Screen {
     private int groupIndex;
     private String armedDelete;
     private String status = "";
+    private GroupList groups;
+    private OptionList details;
     private EditBox groupName;
     private EditBox groupColor;
-    private Button colorSwatch;
-    private int contentBottom;
+    private int detailsX;
+    private int detailsWidth;
 
     GroupManagerScreen(Screen parent, TabNameDimmerConfig config, String serverScope) {
         super(Component.translatable("tabnamedimmer.screen.groups"));
@@ -47,29 +60,41 @@ final class GroupManagerScreen extends Screen {
     protected void init() {
         TabNameDimmerConfig.Profile profile = profile();
         groupIndex = Math.max(0, Math.min(groupIndex, profile.groups.size() - 1));
-        int contentWidth = Math.min(520, Math.max(1, width - 20));
-        int left = (width - contentWidth) / 2;
-        int gap = 8;
-        int columnWidth = (contentWidth - gap) / 2;
-        int right = left + columnWidth + gap;
-        int halfWidth = (columnWidth - 4) / 2;
-        int step = height >= 280 ? 24 : 22;
-        int y = height >= 280 ? 46 : 44;
+        int listWidth = Mth.clamp(width * 3 / 10, 130, 180);
+        detailsWidth = Math.min(width - 12 - listWidth - GAP, 330);
+        int left = (width - listWidth - GAP - detailsWidth) / 2;
+        detailsX = left + listWidth + GAP;
+        int bodyBottom = height - FOOTER;
 
-        Button scopeButton = addRenderableWidget(Button.builder(scopeLabel(), button -> act(() -> {
-            serverProfile = !serverProfile;
-            if (serverProfile && !config.hasServerProfile(serverScope)) {
-                config.getOrCreateServerProfile(serverScope);
-                createdServerProfile = true;
-            }
-            if (!serverProfile) {
-                discardUntouchedServerProfile();
-            }
-            groupIndex = 0;
-        })).bounds(left, y, columnWidth, 20)
-                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.profile"))).build());
-        scopeButton.active = hasServerScope();
-        Button deleteProfileButton = addRenderableWidget(Button.builder(deleteProfileLabel(), button -> {
+        CycleButton<Boolean> scope = CycleButton.booleanBuilder(Component.translatable("tabnamedimmer.profile.server"),
+                        Component.translatable("tabnamedimmer.profile.global"), serverProfile)
+                .displayOnlyValue()
+                .withTooltip(value -> Tooltip.create(Component.translatable("tabnamedimmer.tooltip.profile")))
+                .withCustomNarration(button -> CommonComponents.joinForNarration(Component.translatable("tabnamedimmer.option.profile"),
+                        button.createDefaultNarrationMessage()))
+                .create(left, HEADER + 4, listWidth, 20, Component.translatable("tabnamedimmer.option.profile"),
+                        (button, value) -> act(() -> switchProfile(value)));
+        scope.active = hasServerScope();
+        addRenderableWidget(scope);
+
+        int listTop = HEADER + 30;
+        int listBottom = bodyBottom - 28;
+        if (groups == null) {
+            groups = new GroupList(minecraft);
+        }
+        groups.updateSizeAndPosition(listWidth, Math.max(20, listBottom - listTop), left, listTop);
+        groups.fill(profile.groups, groupIndex);
+        groups.updateSizeAndPosition(listWidth, Math.max(20, listBottom - listTop), left, listTop);
+        addRenderableWidget(groups);
+
+        Button add = addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.add_group"), button -> act(this::addGroup))
+                .bounds(left, bodyBottom - 24, listWidth, 20).build());
+        add.active = profile.groups.size() < TabNameDimmerConfig.MAX_GROUPS;
+
+        buildDetails();
+
+        int y = footerButtonsY();
+        Button useGlobal = addRenderableWidget(Button.builder(deleteProfileLabel(), button -> {
             saveFields();
             if (!DELETE_PROFILE.equals(armedDelete)) {
                 armedDelete = DELETE_PROFILE;
@@ -83,138 +108,131 @@ final class GroupManagerScreen extends Screen {
                 groupIndex = 0;
             }
             rebuildWidgets();
-        }).bounds(right, y, columnWidth, 20)
+        }).bounds(width / 2 - 155, y, 150, 20)
                 .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.delete_server_profile"))).build());
-        deleteProfileButton.active = serverProfile;
-        y += step;
+        useGlobal.active = serverProfile;
+        addRenderableWidget(Button.builder(Component.translatable("gui.back"), button -> onClose())
+                .bounds(width / 2 + 5, y, 150, 20).build());
+    }
 
-        Button previousButton = addRenderableWidget(Button.builder(Component.literal("<"),
-                button -> act(() -> selectGroup(-1))).bounds(left, y, 20, 20)
-                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.previous_group"))).build());
-        addRenderableWidget(Button.builder(groupLabel(), button -> act(() -> selectGroup(1)))
-                .bounds(left + 24, y, columnWidth - 48, 20).build());
-        Button nextButton = addRenderableWidget(Button.builder(Component.literal(">"),
-                button -> act(() -> selectGroup(1))).bounds(left + columnWidth - 20, y, 20, 20)
-                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.next_group"))).build());
-        previousButton.active = profile.groups.size() > 1;
-        nextButton.active = profile.groups.size() > 1;
-        Button addGroupButton = addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.add_group"),
-                button -> act(this::addGroup)).bounds(right, y, halfWidth, 20).build());
-        addGroupButton.active = profile.groups.size() < TabNameDimmerConfig.MAX_GROUPS;
-        Button duplicateButton = addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.duplicate_group"),
-                button -> act(this::duplicateGroup)).bounds(right + halfWidth + 4, y, halfWidth, 20)
-                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.duplicate_group"))).build());
-        duplicateButton.active = profile.groups.size() < TabNameDimmerConfig.MAX_GROUPS;
-        y += step;
+    private void buildDetails() {
+        double scroll = details == null ? 0 : details.scrollAmount();
+        if (details != null) {
+            removeWidget(details);
+        }
+        TabNameDimmerConfig.PlayerGroup group = group();
+        TabNameDimmerConfig.Profile profile = profile();
+        details = new OptionList(minecraft, 310);
+        details.place(detailsX, HEADER, detailsWidth, height - HEADER - FOOTER);
 
-        Button moveUpButton = addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.move_up"),
-                button -> act(() -> moveGroup(-1))).bounds(left, y, halfWidth, 20)
-                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.group_order"))).build());
-        moveUpButton.active = groupIndex > 0;
-        Button moveDownButton = addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.move_down"),
-                button -> act(() -> moveGroup(1))).bounds(left + halfWidth + 4, y, halfWidth, 20)
-                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.group_order"))).build());
-        moveDownButton.active = groupIndex < profile.groups.size() - 1;
-        addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.manage_members_count",
-                group().members.size()), button -> {
+        groupName = new EditBox(font, 0, 0, 130, 20, Component.translatable("tabnamedimmer.field.group_name"));
+        groupName.setMaxLength(64);
+        groupName.setValue(group.name);
+        groupName.setHint(Component.translatable("tabnamedimmer.field.group_name"));
+        groupName.setResponder(value -> {
+            updateValidation();
+            if (!value.isBlank()) {
+                group.name = value.trim();
+            }
+        });
+        details.labeled(Component.translatable("tabnamedimmer.field.group_name"), null, groupName);
+
+        groupColor = new EditBox(font, 0, 0, 70, 20, Component.translatable("tabnamedimmer.field.group_color"));
+        groupColor.setMaxLength(7);
+        groupColor.setValue(String.format("#%06X", group.color));
+        groupColor.setResponder(value -> {
+            updateValidation();
+            Integer color = parseColor(value);
+            if (color != null) {
+                group.color = color;
+            }
+        });
+        SwatchButton swatch = new SwatchButton(() -> group.color, () -> {
+            group.color = nextPresetColor(group.color);
+            groupColor.setValue(String.format("#%06X", group.color));
+        });
+        details.group(Component.translatable("tabnamedimmer.field.group_color"), Component.translatable("tabnamedimmer.tooltip.color_preset"),
+                List.of(groupColor, swatch));
+
+        details.toggle(Component.translatable("tabnamedimmer.option.group_enabled"), null,
+                () -> group.enabled, value -> group.enabled = value, null);
+        details.toggle(Component.translatable("tabnamedimmer.option.group_colorize"), null,
+                () -> group.colorizeNames, value -> group.colorizeNames = value, () -> group.enabled);
+        details.toggle(Component.translatable("tabnamedimmer.option.glowing"), null,
+                () -> group.glowingEnabled, value -> group.glowingEnabled = value, () -> group.enabled);
+        details.toggle(Component.translatable("tabnamedimmer.option.group_transparency"), null,
+                () -> group.transparencyEnabled, value -> group.transparencyEnabled = value, () -> group.enabled);
+
+        Runnable[] sync = new Runnable[1];
+        Button lower = Button.builder(Component.literal("-"), button -> {
+            stepPriority(group, -1);
+            sync[0].run();
+        }).bounds(0, 0, 20, 20).tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.priority_step"))).build();
+        Button value = Button.builder(Component.literal(Integer.toString(group.priority)), button -> {
+            group.priority = 0;
+            sync[0].run();
+        }).bounds(0, 0, 48, 20).tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.priority"))).build();
+        Button raise = Button.builder(Component.literal("+"), button -> {
+            stepPriority(group, 1);
+            sync[0].run();
+        }).bounds(0, 0, 20, 20).tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.priority_step"))).build();
+        sync[0] = () -> {
+            value.setMessage(Component.literal(Integer.toString(group.priority)));
+            lower.active = group.priority > TabNameDimmerConfig.MIN_PRIORITY;
+            raise.active = group.priority < TabNameDimmerConfig.MAX_PRIORITY;
+        };
+        details.group(Component.translatable("tabnamedimmer.option.group_priority"), Component.translatable("tabnamedimmer.tooltip.priority"),
+                List.of(lower, value, raise));
+        sync[0].run();
+
+        Button members = Button.builder(Component.translatable("tabnamedimmer.button.manage_members_count", group.members.size()), button -> {
             armedDelete = null;
             saveFields();
             ScreenNavigator.show(minecraft, new GroupMembersScreen(this, config, profile(), group()));
-        }).bounds(right, y, halfWidth, 20).build());
-        Button deleteGroupButton = addRenderableWidget(Button.builder(deleteGroupLabel(), button -> {
+        }).build();
+        Button delete = Button.builder(deleteGroupLabel(), button -> {
             saveFields();
             if (!DELETE_GROUP.equals(armedDelete)) {
                 armedDelete = DELETE_GROUP;
-                rebuildWidgets();
+                buildDetails();
                 return;
             }
-            armedDelete = null;
-            if (profile().groups.size() > 1) {
-                profile().groups.remove(groupIndex);
-                groupIndex = Math.max(0, groupIndex - 1);
-            }
-            rebuildWidgets();
-        }).bounds(right + halfWidth + 4, y, halfWidth, 20).build());
-        deleteGroupButton.active = profile.groups.size() > 1;
-        y += step + 10;
+            act(() -> {
+                if (profile().groups.size() > 1) {
+                    profile().groups.remove(groupIndex);
+                    groupIndex = Math.max(0, groupIndex - 1);
+                }
+            });
+        }).build();
+        delete.active = profile.groups.size() > 1;
+        details.buttons(List.of(members, delete));
 
-        groupName = new EditBox(font, left, y, columnWidth, 20, Component.translatable("tabnamedimmer.field.group_name"));
-        groupName.setMaxLength(64);
-        groupName.setValue(group().name);
-        groupName.setHint(Component.translatable("tabnamedimmer.field.group_name"));
-        groupName.setResponder(value -> updateValidation());
-        addRenderableWidget(groupName);
-        groupColor = new EditBox(font, right, y, columnWidth - 24, 20,
-                Component.translatable("tabnamedimmer.field.group_color"));
-        groupColor.setMaxLength(7);
-        groupColor.setValue(String.format("#%06X", group().color));
-        groupColor.setHint(Component.translatable("tabnamedimmer.field.group_color"));
-        groupColor.setResponder(value -> updateValidation());
-        addRenderableWidget(groupColor);
-        colorSwatch = addRenderableWidget(Button.builder(Component.empty(), button -> act(this::nextPresetColor))
-                .bounds(right + columnWidth - 20, y, 20, 20)
-                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.color_preset"))).build());
-        y += step;
+        Button up = Button.builder(Component.translatable("tabnamedimmer.button.move_up"), button -> act(() -> moveGroup(-1)))
+                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.group_order"))).build();
+        up.active = groupIndex > 0;
+        Button down = Button.builder(Component.translatable("tabnamedimmer.button.move_down"), button -> act(() -> moveGroup(1)))
+                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.group_order"))).build();
+        down.active = groupIndex < profile.groups.size() - 1;
+        Button duplicate = Button.builder(Component.translatable("tabnamedimmer.button.duplicate_group"), button -> act(this::duplicateGroup))
+                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.duplicate_group"))).build();
+        duplicate.active = profile.groups.size() < TabNameDimmerConfig.MAX_GROUPS;
+        details.buttons(List.of(up, down, duplicate));
+        details.text(Component.translatable("tabnamedimmer.groups.save_hint"));
 
-        addRenderableWidget(Button.builder(enabledLabel(), button -> act(() -> group().enabled = !group().enabled))
-                .bounds(left, y, columnWidth, 20).build());
-        addRenderableWidget(Button.builder(colorizeLabel(), button -> act(() -> group().colorizeNames = !group().colorizeNames))
-                .bounds(right, y, columnWidth, 20).build());
-        y += step;
-
-        addRenderableWidget(Button.builder(glowLabel(), button -> act(() -> group().glowingEnabled = !group().glowingEnabled))
-                .bounds(left, y, columnWidth, 20).build());
-        addRenderableWidget(Button.builder(groupTransparencyLabel(),
-                        button -> act(() -> group().transparencyEnabled = !group().transparencyEnabled))
-                .bounds(right, y, columnWidth, 20).build());
-        y += step;
-
-        Button lowerButton = addRenderableWidget(Button.builder(Component.literal("-"), button -> act(() -> changePriority(-1)))
-                .bounds(left, y, 20, 20)
-                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.priority_step"))).build());
-        lowerButton.active = group().priority > TabNameDimmerConfig.MIN_PRIORITY;
-        addRenderableWidget(Button.builder(priorityLabel(), button -> act(() -> group().priority = 0))
-                .bounds(left + 24, y, contentWidth - 48, 20)
-                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.priority"))).build());
-        Button raiseButton = addRenderableWidget(Button.builder(Component.literal("+"), button -> act(() -> changePriority(1)))
-                .bounds(left + contentWidth - 20, y, 20, 20)
-                .tooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.priority_step"))).build());
-        raiseButton.active = group().priority < TabNameDimmerConfig.MAX_PRIORITY;
-        contentBottom = y + 20;
-
-        int doneWidth = Math.min(200, Math.max(1, width - 20));
-        addRenderableWidget(Button.builder(Component.translatable("gui.back"), button -> onClose())
-                .bounds((width - doneWidth) / 2, height - 30, doneWidth, 20).build());
+        details.refresh();
+        details.setScrollAmount(scroll);
+        addRenderableWidget(details);
         updateValidation();
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
-        graphics.fill(0, 0, width, height, 0xF00D141F);
+    protected Component subtitle() {
+        return status.isBlank() ? activeProfileLine() : Component.literal(status);
+    }
 
-        graphics.fill(0, 0, width, 28, 0xFF182638);
-        graphics.fill(0, 27, width, 28, 0xFF2E435E);
-        graphics.centeredText(font, title, width / 2, 9, 0xFFFFFFFF);
-        graphics.centeredText(font, status.isBlank() ? activeProfileLine() : Component.literal(status),
-                width / 2, 32, 0xFF8FBCBB);
-        if (groupName != null && groupColor != null) {
-            graphics.text(font, Component.translatable("tabnamedimmer.field.group_name"),
-                    groupName.getX(), groupName.getY() - 10, 0xFFB8C0CC);
-            graphics.text(font, Component.translatable("tabnamedimmer.field.group_color"),
-                    groupColor.getX(), groupColor.getY() - 10, 0xFFB8C0CC);
-        }
-        if (height - 44 > contentBottom + 4) {
-            graphics.centeredText(font, Component.translatable("tabnamedimmer.groups.save_hint"),
-                    width / 2, height - 44, 0xFF9AA5B4);
-        }
-        super.extractRenderState(graphics, mouseX, mouseY, tickDelta);
-        if (colorSwatch != null) {
-            Integer color = groupColor == null ? null : parseColor(groupColor.getValue());
-            int x = colorSwatch.getX() + 4;
-            int y = colorSwatch.getY() + 4;
-            graphics.fill(x - 1, y - 1, x + 13, y + 13, 0xFF0D141F);
-            graphics.fill(x, y, x + 12, y + 12, 0xFF000000 | (color == null ? group().color : color));
-        }
+    @Override
+    protected int subtitleColor() {
+        return status.isBlank() ? TEXT_DIM : NOTICE;
     }
 
     @Override
@@ -242,6 +260,17 @@ final class GroupManagerScreen extends Screen {
         ScreenNavigator.show(minecraft, parent);
     }
 
+    private void select(int index) {
+        if (index == groupIndex) {
+            return;
+        }
+        saveFields();
+        armedDelete = null;
+        status = "";
+        groupIndex = index;
+        buildDetails();
+    }
+
     private void act(Runnable action) {
         armedDelete = null;
         status = "";
@@ -250,61 +279,66 @@ final class GroupManagerScreen extends Screen {
         rebuildWidgets();
     }
 
-    private void selectGroup(int direction) {
-        int size = profile().groups.size();
-        groupIndex = Math.floorMod(groupIndex + direction, size);
+    private void switchProfile(boolean server) {
+        serverProfile = server;
+        if (serverProfile && !config.hasServerProfile(serverScope)) {
+            config.getOrCreateServerProfile(serverScope);
+            createdServerProfile = true;
+        }
+        if (!serverProfile) {
+            discardUntouchedServerProfile();
+        }
+        groupIndex = 0;
     }
 
     private void addGroup() {
-        List<TabNameDimmerConfig.PlayerGroup> groups = profile().groups;
-        if (groups.size() >= TabNameDimmerConfig.MAX_GROUPS) {
+        List<TabNameDimmerConfig.PlayerGroup> list = profile().groups;
+        if (list.size() >= TabNameDimmerConfig.MAX_GROUPS) {
             return;
         }
         TabNameDimmerConfig.PlayerGroup group = TabNameDimmerConfig.PlayerGroup.defaultGroup();
-        group.name = Component.translatable("tabnamedimmer.group.new", groups.size() + 1).getString();
-        group.priority = TabNameDimmerConfig.clampPriority(groups.size());
-        group.color = PRESET_COLORS[groups.size() % PRESET_COLORS.length];
+        group.name = Component.translatable("tabnamedimmer.group.new", list.size() + 1).getString();
+        group.priority = TabNameDimmerConfig.clampPriority(list.size());
+        group.color = PRESET_COLORS[list.size() % PRESET_COLORS.length];
         group.colorizeNames = true;
-        groups.add(group);
-        groupIndex = groups.size() - 1;
+        list.add(group);
+        groupIndex = list.size() - 1;
     }
 
     private void duplicateGroup() {
-        List<TabNameDimmerConfig.PlayerGroup> groups = profile().groups;
-        if (groups.size() >= TabNameDimmerConfig.MAX_GROUPS) {
+        List<TabNameDimmerConfig.PlayerGroup> list = profile().groups;
+        if (list.size() >= TabNameDimmerConfig.MAX_GROUPS) {
             return;
         }
         TabNameDimmerConfig.PlayerGroup copy = group().copy();
         String name = Component.translatable("tabnamedimmer.group.copy", copy.name).getString();
         copy.name = name.length() <= 64 ? name : name.substring(0, 64);
-        groups.add(groupIndex + 1, copy);
+        list.add(groupIndex + 1, copy);
         groupIndex++;
     }
 
     private void moveGroup(int direction) {
-        List<TabNameDimmerConfig.PlayerGroup> groups = profile().groups;
+        List<TabNameDimmerConfig.PlayerGroup> list = profile().groups;
         int target = groupIndex + direction;
-        if (target < 0 || target >= groups.size()) {
+        if (target < 0 || target >= list.size()) {
             return;
         }
-        Collections.swap(groups, groupIndex, target);
+        Collections.swap(list, groupIndex, target);
         groupIndex = target;
     }
 
-    private void changePriority(int direction) {
+    private static void stepPriority(TabNameDimmerConfig.PlayerGroup group, int direction) {
         int amount = TabNameDimmerClient.isShiftDown() ? 10 : 1;
-        group().priority = TabNameDimmerConfig.clampPriority(group().priority + direction * amount);
+        group.priority = TabNameDimmerConfig.clampPriority(group.priority + direction * amount);
     }
 
-    private void nextPresetColor() {
-        int next = PRESET_COLORS[0];
+    private static int nextPresetColor(int current) {
         for (int i = 0; i < PRESET_COLORS.length; i++) {
-            if (PRESET_COLORS[i] == group().color) {
-                next = PRESET_COLORS[(i + 1) % PRESET_COLORS.length];
-                break;
+            if (PRESET_COLORS[i] == current) {
+                return PRESET_COLORS[(i + 1) % PRESET_COLORS.length];
             }
         }
-        group().color = next;
+        return PRESET_COLORS[0];
     }
 
     private void discardUntouchedServerProfile() {
@@ -333,10 +367,10 @@ final class GroupManagerScreen extends Screen {
 
     private void updateValidation() {
         if (groupColor != null) {
-            groupColor.setTextColor(parseColor(groupColor.getValue()) == null ? 0xFFFF5555 : 0xFFE0E0E0);
+            groupColor.setTextColor(parseColor(groupColor.getValue()) == null ? ERROR : 0xFFE0E0E0);
         }
         if (groupName != null) {
-            groupName.setTextColor(groupName.getValue().isBlank() ? 0xFFFF5555 : 0xFFE0E0E0);
+            groupName.setTextColor(groupName.getValue().isBlank() ? ERROR : 0xFFE0E0E0);
         }
     }
 
@@ -345,8 +379,8 @@ final class GroupManagerScreen extends Screen {
     }
 
     private TabNameDimmerConfig.PlayerGroup group() {
-        List<TabNameDimmerConfig.PlayerGroup> groups = profile().groups;
-        return groups.get(Math.max(0, Math.min(groupIndex, groups.size() - 1)));
+        List<TabNameDimmerConfig.PlayerGroup> list = profile().groups;
+        return list.get(Math.max(0, Math.min(groupIndex, list.size() - 1)));
     }
 
     private boolean hasServerScope() {
@@ -361,44 +395,16 @@ final class GroupManagerScreen extends Screen {
                 ? "tabnamedimmer.groups.active_server" : "tabnamedimmer.groups.active_global");
     }
 
-    private Component scopeLabel() {
-        return Component.translatable("tabnamedimmer.option.profile",
-                Component.translatable(serverProfile ? "tabnamedimmer.profile.server" : "tabnamedimmer.profile.global"));
-    }
-
     private Component deleteProfileLabel() {
-        return Component.translatable(DELETE_PROFILE.equals(armedDelete)
-                ? "tabnamedimmer.button.confirm" : "tabnamedimmer.button.delete_server_profile");
+        return DELETE_PROFILE.equals(armedDelete)
+                ? Component.translatable("tabnamedimmer.button.confirm").withStyle(ChatFormatting.RED)
+                : Component.translatable("tabnamedimmer.button.delete_server_profile");
     }
 
     private Component deleteGroupLabel() {
-        return Component.translatable(DELETE_GROUP.equals(armedDelete)
-                ? "tabnamedimmer.button.confirm" : "tabnamedimmer.button.delete_group");
-    }
-
-    private Component groupLabel() {
-        return Component.translatable("tabnamedimmer.option.group", group().name,
-                groupIndex + 1, profile().groups.size());
-    }
-
-    private Component enabledLabel() {
-        return Component.translatable("tabnamedimmer.option.group_enabled", TabNameDimmerConfigScreen.onOff(group().enabled));
-    }
-
-    private Component colorizeLabel() {
-        return Component.translatable("tabnamedimmer.option.group_colorize", TabNameDimmerConfigScreen.onOff(group().colorizeNames));
-    }
-
-    private Component glowLabel() {
-        return Component.translatable("tabnamedimmer.option.glowing", TabNameDimmerConfigScreen.onOff(group().glowingEnabled));
-    }
-
-    private Component groupTransparencyLabel() {
-        return Component.translatable("tabnamedimmer.option.group_transparency", TabNameDimmerConfigScreen.onOff(group().transparencyEnabled));
-    }
-
-    private Component priorityLabel() {
-        return Component.translatable("tabnamedimmer.option.group_priority", group().priority);
+        return DELETE_GROUP.equals(armedDelete)
+                ? Component.translatable("tabnamedimmer.button.confirm").withStyle(ChatFormatting.RED)
+                : Component.translatable("tabnamedimmer.button.delete_group");
     }
 
     static Integer parseColor(String value) {
@@ -413,6 +419,114 @@ final class GroupManagerScreen extends Screen {
             return Integer.parseInt(normalized, 16) & 0xFFFFFF;
         } catch (NumberFormatException ignored) {
             return null;
+        }
+    }
+
+    private final class GroupList extends ObjectSelectionList<GroupEntry> {
+        private boolean quiet;
+
+        GroupList(Minecraft minecraft) {
+            super(minecraft, 0, 0, 0, 20);
+        }
+
+        void fill(List<TabNameDimmerConfig.PlayerGroup> list, int selected) {
+            quiet = true;
+            clearEntries();
+            for (int i = 0; i < list.size(); i++) {
+                GroupEntry entry = new GroupEntry(list.get(i), i);
+                addEntry(entry);
+                if (i == selected) {
+                    setSelected(entry);
+                }
+            }
+            refreshScrollAmount();
+            quiet = false;
+        }
+
+        @Override
+        public void setSelected(GroupEntry entry) {
+            super.setSelected(entry);
+            if (!quiet && entry != null) {
+                select(entry.index);
+            }
+        }
+
+        @Override
+        public int getRowLeft() {
+            return getX() + 4;
+        }
+
+        @Override
+        public int getRowWidth() {
+            return this.width - (scrollable() ? 18 : 8);
+        }
+
+        @Override
+        protected int scrollBarX() {
+            return getRight() - 10;
+        }
+    }
+
+    private final class GroupEntry extends ObjectSelectionList.Entry<GroupEntry> {
+        private final TabNameDimmerConfig.PlayerGroup group;
+        private final int index;
+
+        GroupEntry(TabNameDimmerConfig.PlayerGroup group, int index) {
+            this.group = group;
+            this.index = index;
+        }
+
+        @Override
+        public void extractContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, boolean hovered, float a) {
+            int x = getContentX() + 2;
+            int middle = getContentYMiddle();
+            graphics.fill(x, middle - 4, x + 9, middle + 5, 0xFF000000);
+            graphics.fill(x + 1, middle - 3, x + 8, middle + 4, 0xFF000000 | group.color);
+            String count = Integer.toString(group.members.size());
+            int countX = getContentRight() - 2 - font.width(count);
+            graphics.text(font, count, countX, middle - 4, TEXT_DIM, false);
+            int room = countX - x - 18;
+            String name = font.width(group.name) <= room ? group.name
+                    : font.plainSubstrByWidth(group.name, Math.max(0, room - font.width("..."))) + "...";
+            Component label = group.enabled ? Component.literal(name) : Component.literal(name).withStyle(ChatFormatting.ITALIC);
+            graphics.text(font, label, x + 14, middle - 4, group.enabled ? TEXT : TEXT_DIM, true);
+        }
+
+        @Override
+        public Component getNarration() {
+            return CommonComponents.joinForNarration(Component.literal(group.name),
+                    Component.translatable("tabnamedimmer.button.manage_members_count", group.members.size()));
+        }
+    }
+
+    private static final class SwatchButton extends AbstractButton {
+        private final IntSupplier color;
+        private final Runnable action;
+
+        SwatchButton(IntSupplier color, Runnable action) {
+            super(0, 0, 20, 20, Component.translatable("tabnamedimmer.tooltip.color_preset"));
+            this.color = color;
+            this.action = action;
+            setTooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.color_preset")));
+        }
+
+        @Override
+        public void onPress(InputWithModifiers input) {
+            action.run();
+        }
+
+        @Override
+        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+            extractDefaultSprite(graphics);
+            int x = getX() + 5;
+            int y = getY() + 5;
+            graphics.fill(x - 1, y - 1, x + 11, y + 11, 0xFF000000);
+            graphics.fill(x, y, x + 10, y + 10, 0xFF000000 | color.getAsInt());
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {
+            defaultButtonNarrationText(output);
         }
     }
 }

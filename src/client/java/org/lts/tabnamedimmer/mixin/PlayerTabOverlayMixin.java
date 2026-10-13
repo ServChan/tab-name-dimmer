@@ -93,7 +93,7 @@ public class PlayerTabOverlayMixin {
             graphics.text(font, Component.literal(info.getProfile().name()), textX, cellY, 0xFF000000 | nameColor);
             if (config.hudShowPing) {
                 String ping = info.getLatency() + " ms";
-                graphics.text(font, Component.literal(ping), cellX + cellWidth - font.width(ping), cellY, 0xFF8FBCBB);
+                graphics.text(font, Component.literal(ping), cellX + cellWidth - font.width(ping), cellY, 0xFFA0A0A0);
             }
         }
     }

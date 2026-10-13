@@ -1,7 +1,6 @@
 package org.lts.tabnamedimmer.gui;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
@@ -14,25 +13,21 @@ import org.lts.tabnamedimmer.ServerScopeTracker;
 import org.lts.tabnamedimmer.TabNameDimmerClient;
 import org.lts.tabnamedimmer.TabNameDimmerConfig;
 
+import java.util.List;
 import java.util.Locale;
 
-public class TabNameDimmerConfigScreen extends Screen {
-    private static final int FIELD_HEIGHT = 20;
-    private static final int FIRST_ROW_Y = 42;
-    private static final int ROW_COUNT = 8;
-    private static final int BOTTOM_RESERVED = 52;
-    private static final float[] OPACITY_PRESETS = {0.15F, 0.3F, 0.5F, 0.75F, 1.0F};
-    private static final float[] SPEED_PRESETS = {0.01F, 0.025F, 0.05F, 0.1F, 0.2F};
+public class TabNameDimmerConfigScreen extends FramedScreen {
+    private static final int ROW_WIDTH = 310;
+    private static final List<Float> OPACITY_PRESETS = List.of(0.15F, 0.3F, 0.5F, 0.75F, 1.0F);
+    private static final List<Float> SPEED_PRESETS = List.of(0.01F, 0.025F, 0.05F, 0.1F, 0.2F);
     private static final SystemToast.SystemToastId SAVE_TOAST_ID = new SystemToast.SystemToastId();
 
     private final Screen parent;
     private final TabNameDimmerConfig config;
+    private OptionList list;
     private Button cancelButton;
     private boolean dirty;
     private int dirtyCheckTicks;
-    private int afkIconsLabelX;
-    private int afkIconsLabelY;
-    private int afkIconsLabelWidth;
 
     public TabNameDimmerConfigScreen(Screen parent) {
         this(parent, TabNameDimmerConfig.currentCopy());
@@ -46,106 +41,74 @@ public class TabNameDimmerConfigScreen extends Screen {
 
     @Override
     protected void init() {
-        int contentWidth = Math.min(520, Math.max(1, width - 20));
-        int left = (width - contentWidth) / 2;
-        int gap = 8;
-        int columnWidth = (contentWidth - gap) / 2;
-        int y = FIRST_ROW_Y;
-        int rowStep = rowStep();
+        double scroll = list == null ? 0 : list.scrollAmount();
+        list = new OptionList(minecraft, ROW_WIDTH);
+        list.place(0, HEADER, width, height - HEADER - FOOTER);
 
-        addPair(left, y, columnWidth, gap,
-                Button.builder(enabledLabel(), button -> {
-                    config.enabled = !config.enabled;
-                    button.setMessage(enabledLabel());
-                }).build(),
-                Button.builder(modeLabel(), button -> {
-                    config.displayMode = next(config.displayMode, TabNameDimmerConfig.DisplayMode.values());
-                    button.setMessage(modeLabel());
-                }).build());
-        y += rowStep;
+        list.header(Component.translatable("tabnamedimmer.section.general"));
+        list.toggle(Component.translatable("tabnamedimmer.option.enabled"), null,
+                () -> config.enabled, value -> config.enabled = value, null);
+        list.cycle(Component.translatable("tabnamedimmer.option.mode"), null, List.of(TabNameDimmerConfig.DisplayMode.values()),
+                mode -> Component.translatable("tabnamedimmer.mode." + enumKey(mode)),
+                () -> config.displayMode, value -> config.displayMode = value, this::enabled);
+        list.cycle(Component.translatable("tabnamedimmer.option.activation"), Component.translatable("tabnamedimmer.activation.key_hint"),
+                List.of(TabNameDimmerConfig.ActivationMode.values()),
+                mode -> Component.translatable("tabnamedimmer.activation." + enumKey(mode)),
+                () -> config.activationMode, value -> config.activationMode = value, this::enabled);
+        list.toggle(Component.translatable("tabnamedimmer.option.case_sensitive"), null,
+                () -> config.caseSensitive, value -> config.caseSensitive = value, this::enabled);
 
-        addPair(left, y, columnWidth, gap,
-                Button.builder(caseSensitiveLabel(), button -> {
-                    config.caseSensitive = !config.caseSensitive;
-                    button.setMessage(caseSensitiveLabel());
-                }).build(),
-                Button.builder(activationLabel(), button -> {
-                    config.activationMode = next(config.activationMode, TabNameDimmerConfig.ActivationMode.values());
-                    button.setMessage(activationLabel());
-                }).build());
-        y += rowStep;
+        list.header(Component.translatable("tabnamedimmer.section.players"));
+        list.toggle(Component.translatable("tabnamedimmer.option.player_transparency"), null,
+                () -> config.playerTransparencyEnabled, value -> config.playerTransparencyEnabled = value, this::enabled);
+        list.cycle(Component.translatable("tabnamedimmer.option.player_opacity"), null, OPACITY_PRESETS,
+                value -> Component.literal(Math.round(value * 100.0F) + "%"),
+                () -> config.dimOpacity, value -> config.dimOpacity = value,
+                () -> config.enabled && config.playerTransparencyEnabled);
+        list.cycle(Component.translatable("tabnamedimmer.option.animation_speed"), null, SPEED_PRESETS,
+                TabNameDimmerConfigScreen::speedLabel,
+                () -> config.animationSpeed, value -> config.animationSpeed = value, this::enabled);
+        list.cycle(Component.translatable("tabnamedimmer.option.player_sort"), null, List.of(TabNameDimmerConfig.PlayerSortMode.values()),
+                mode -> Component.translatable("tabnamedimmer.sort." + enumKey(mode)),
+                () -> config.playerSortMode, value -> config.playerSortMode = value, this::enabled);
+        list.cycle(Component.translatable("tabnamedimmer.option.afk_handling"), null, List.of(TabNameDimmerConfig.AfkHandlingMode.values()),
+                mode -> Component.translatable("tabnamedimmer.afk." + enumKey(mode)),
+                () -> config.afkHandlingMode, value -> config.afkHandlingMode = value, this::enabled);
+        EditBox afkIcons = new EditBox(font, 0, 0, 120, 20, Component.translatable("tabnamedimmer.field.afk_icons"));
+        afkIcons.setMaxLength(TabNameDimmerConfig.MAX_AFK_ICONS_LENGTH);
+        afkIcons.setValue(config.afkIcons);
+        afkIcons.setHint(Component.translatable("tabnamedimmer.hint.afk_icons"));
+        afkIcons.setTooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.afk_icons")));
+        afkIcons.setResponder(value -> config.afkIcons = value.trim());
+        list.labeled(Component.translatable("tabnamedimmer.option.afk_icons"), Component.translatable("tabnamedimmer.tooltip.afk_icons"), afkIcons);
 
-        addPair(left, y, columnWidth, gap,
-                Button.builder(notificationsLabel(), button -> {
-                    config.notificationsEnabled = !config.notificationsEnabled;
-                    button.setMessage(notificationsLabel());
-                }).build(),
-                Button.builder(transparencyLabel(), button -> {
-                    config.playerTransparencyEnabled = !config.playerTransparencyEnabled;
-                    button.setMessage(transparencyLabel());
-                }).build());
-        y += rowStep;
+        list.header(Component.translatable("tabnamedimmer.section.notifications"));
+        list.toggle(Component.translatable("tabnamedimmer.option.notifications"), null,
+                () -> config.notificationsEnabled, value -> config.notificationsEnabled = value, null);
+        list.toggle(Component.translatable("tabnamedimmer.option.compact_notifications"), null,
+                () -> config.compactNotifications, value -> config.compactNotifications = value, () -> config.notificationsEnabled);
+        list.toggle(Component.translatable("tabnamedimmer.option.notification_sounds"), null,
+                () -> config.notificationSoundsEnabled, value -> config.notificationSoundsEnabled = value, () -> config.notificationsEnabled);
 
-        addPair(left, y, columnWidth, gap,
-                Button.builder(compactNotificationsLabel(), button -> {
-                    config.compactNotifications = !config.compactNotifications;
-                    button.setMessage(compactNotificationsLabel());
-                }).build(),
-                Button.builder(notificationSoundsLabel(), button -> {
-                    config.notificationSoundsEnabled = !config.notificationSoundsEnabled;
-                    button.setMessage(notificationSoundsLabel());
-                }).build());
-        y += rowStep;
-
-        addPair(left, y, columnWidth, gap,
-                Button.builder(opacityLabel(), button -> {
-                    config.dimOpacity = nextPreset(config.dimOpacity, OPACITY_PRESETS);
-                    button.setMessage(opacityLabel());
-                }).build(),
-                Button.builder(speedLabel(), button -> {
-                    config.animationSpeed = nextPreset(config.animationSpeed, SPEED_PRESETS);
-                    button.setMessage(speedLabel());
-                }).build());
-        y += rowStep;
-
-        addPair(left, y, columnWidth, gap,
-                Button.builder(sortLabel(), button -> {
-                    config.playerSortMode = next(config.playerSortMode, TabNameDimmerConfig.PlayerSortMode.values());
-                    button.setMessage(sortLabel());
-                }).build(),
-                Button.builder(afkHandlingLabel(), button -> {
-                    config.afkHandlingMode = next(config.afkHandlingMode, TabNameDimmerConfig.AfkHandlingMode.values());
-                    button.setMessage(afkHandlingLabel());
-                }).build());
-        y += rowStep;
-
-        afkIconsLabelX = left;
-        afkIconsLabelY = y + (FIELD_HEIGHT - font.lineHeight) / 2 + 1;
-        afkIconsLabelWidth = columnWidth;
-        EditBox afkIconsField = new EditBox(font, left + columnWidth + gap, y, columnWidth, FIELD_HEIGHT,
-                Component.translatable("tabnamedimmer.field.afk_icons"));
-        afkIconsField.setMaxLength(TabNameDimmerConfig.MAX_AFK_ICONS_LENGTH);
-        afkIconsField.setValue(config.afkIcons);
-        afkIconsField.setHint(Component.translatable("tabnamedimmer.hint.afk_icons"));
-        afkIconsField.setTooltip(Tooltip.create(Component.translatable("tabnamedimmer.tooltip.afk_icons")));
-        afkIconsField.setResponder(value -> config.afkIcons = value.trim());
-        addRenderableWidget(afkIconsField);
-        y += rowStep;
-
-        addPair(left, y, columnWidth, gap,
+        list.buttons(List.of(
                 Button.builder(Component.translatable("tabnamedimmer.button.manage_groups"), button ->
-                        ScreenNavigator.show(minecraft, new GroupManagerScreen(this, config,
-                                ServerScopeTracker.currentScope()))).build(),
+                        ScreenNavigator.show(minecraft, new GroupManagerScreen(this, config, ServerScopeTracker.currentScope()))).build(),
                 Button.builder(Component.translatable("tabnamedimmer.button.hud_settings"), button ->
-                        ScreenNavigator.show(minecraft, new HudSettingsScreen(this, config))).build());
+                        ScreenNavigator.show(minecraft, new HudSettingsScreen(this, config))).build()));
+        list.refresh();
+        list.setScrollAmount(scroll);
+        addRenderableWidget(list);
 
-        int bottom = height - 30;
-        int actionWidth = (contentWidth - gap) / 2;
+        int y = footerButtonsY();
         addRenderableWidget(Button.builder(Component.translatable("tabnamedimmer.button.save"), button -> saveAndClose())
-                .bounds(left, bottom, actionWidth, FIELD_HEIGHT).build());
+                .bounds(width / 2 - 155, y, 150, 20).build());
         cancelButton = addRenderableWidget(Button.builder(cancelLabel(), button -> closeWithoutSaving())
-                .bounds(left + actionWidth + gap, bottom, actionWidth, FIELD_HEIGHT).build());
+                .bounds(width / 2 + 5, y, 150, 20).build());
         refreshDirty();
+    }
+
+    private boolean enabled() {
+        return config.enabled;
     }
 
     @Override
@@ -168,37 +131,14 @@ public class TabNameDimmerConfigScreen extends Screen {
         return Component.translatable(dirty ? "tabnamedimmer.button.discard" : "tabnamedimmer.button.cancel");
     }
 
-    private int rowStep() {
-        int available = height - BOTTOM_RESERVED - FIRST_ROW_Y - FIELD_HEIGHT;
-        return Math.max(FIELD_HEIGHT + 1, Math.min(24, available / (ROW_COUNT - 1)));
-    }
-
-    private void addPair(int left, int y, int width, int gap, Button first, Button second) {
-        first.setRectangle(width, FIELD_HEIGHT, left, y);
-        second.setRectangle(width, FIELD_HEIGHT, left + width + gap, y);
-        addRenderableWidget(first);
-        addRenderableWidget(second);
+    @Override
+    protected Component subtitle() {
+        return dirty ? Component.translatable("tabnamedimmer.state.unsaved") : null;
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
-        graphics.fill(0, 0, width, height, 0xF00D141F);
-
-        graphics.fill(0, 0, width, 28, 0xFF182638);
-        graphics.fill(0, 27, width, 28, 0xFF2E435E);
-        int titleX = (width - font.width(title)) / 2;
-        graphics.text(font, title, titleX, 9, 0xFFFFFFFF, true);
-        if (dirty) {
-            graphics.centeredText(font, Component.translatable("tabnamedimmer.state.unsaved"), width / 2, 31, 0xFFFFC857);
-        }
-
-        String afkIconsLabel = font.plainSubstrByWidth(
-                Component.translatable("tabnamedimmer.option.afk_icons").getString(), afkIconsLabelWidth);
-        graphics.text(font, Component.literal(afkIconsLabel), afkIconsLabelX, afkIconsLabelY, 0xFFE0E6EE, false);
-
-        graphics.centeredText(font, Component.translatable("tabnamedimmer.activation.key_hint"),
-                width / 2, height - 44, 0xFF00E5FF);
-        super.extractRenderState(graphics, mouseX, mouseY, tickDelta);
+    protected int subtitleColor() {
+        return NOTICE;
     }
 
     @Override
@@ -247,85 +187,14 @@ public class TabNameDimmerConfigScreen extends Screen {
         }
     }
 
-    private Component enabledLabel() {
-        return Component.translatable("tabnamedimmer.option.enabled", onOff(config.enabled));
-    }
-
-    private Component modeLabel() {
-        return Component.translatable("tabnamedimmer.option.mode",
-                Component.translatable("tabnamedimmer.mode." + enumKey(config.displayMode)));
-    }
-
-    private Component caseSensitiveLabel() {
-        return Component.translatable("tabnamedimmer.option.case_sensitive", onOff(config.caseSensitive));
-    }
-
-    private Component activationLabel() {
-        return Component.translatable("tabnamedimmer.option.activation",
-                Component.translatable("tabnamedimmer.activation." + enumKey(config.activationMode)));
-    }
-
-    private Component notificationsLabel() {
-        return Component.translatable("tabnamedimmer.option.notifications", onOff(config.notificationsEnabled));
-    }
-
-    private Component compactNotificationsLabel() {
-        return Component.translatable("tabnamedimmer.option.compact_notifications", onOff(config.compactNotifications));
-    }
-
-    private Component notificationSoundsLabel() {
-        return Component.translatable("tabnamedimmer.option.notification_sounds", onOff(config.notificationSoundsEnabled));
-    }
-
-    private Component transparencyLabel() {
-        return Component.translatable("tabnamedimmer.option.player_transparency", onOff(config.playerTransparencyEnabled));
-    }
-
-    private Component opacityLabel() {
-        return Component.translatable("tabnamedimmer.option.player_opacity", Math.round(config.dimOpacity * 100.0F));
-    }
-
-    private Component speedLabel() {
-        float percent = config.animationSpeed * 100.0F;
+    private static Component speedLabel(float speed) {
+        float percent = speed * 100.0F;
         String value = percent == Math.round(percent)
                 ? Integer.toString(Math.round(percent)) : String.format(Locale.ROOT, "%.1f", percent);
-        return Component.translatable("tabnamedimmer.option.animation_speed", value);
-    }
-
-    private Component sortLabel() {
-        return Component.translatable("tabnamedimmer.option.player_sort",
-                Component.translatable("tabnamedimmer.sort." + enumKey(config.playerSortMode)));
-    }
-
-    private Component afkHandlingLabel() {
-        return Component.translatable("tabnamedimmer.option.afk_handling",
-                Component.translatable("tabnamedimmer.afk." + enumKey(config.afkHandlingMode)));
-    }
-
-    static Component onOff(boolean value) {
-        return Component.translatable(value ? "tabnamedimmer.state.on" : "tabnamedimmer.state.off")
-                .withStyle(style -> style.withColor(value ? 0xFF55FF55 : 0xFFFF5555));
+        return Component.literal(value + "%");
     }
 
     static String enumKey(Enum<?> value) {
         return value.name().toLowerCase(Locale.ROOT);
-    }
-
-    private static <T> T next(T current, T[] values) {
-        for (int i = 0; i < values.length; i++) {
-            if (values[i] == current) {
-                return values[(i + 1) % values.length];
-            }
-        }
-        return values[0];
-    }
-
-    private static float nextPreset(float current, float[] presets) {
-        for (float preset : presets) {
-            if (preset > current + 0.0001F) {
-                return preset;
-            }
-        }
-        return presets[0];
     }
 }
