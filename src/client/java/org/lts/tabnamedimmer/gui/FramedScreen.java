@@ -39,16 +39,20 @@ abstract class FramedScreen extends Screen {
         graphics.blit(RenderPipelines.GUI_TEXTURED, top, 0, HEADER - 2, 0.0F, 0.0F, this.width, 2, 32, 2);
         graphics.blit(RenderPipelines.GUI_TEXTURED, bottom, 0, this.height - FOOTER, 0.0F, 0.0F, this.width, 2, 32, 2);
         Component subtitle = subtitle();
+        Component title = Component.literal(fit(this.title.getString()));
         if (subtitle == null) {
-            graphics.centeredText(this.font, this.title, this.width / 2, (HEADER - 9) / 2, TEXT);
+            graphics.centeredText(this.font, title, this.width / 2, (HEADER - 9) / 2, TEXT);
             return;
         }
-        graphics.centeredText(this.font, this.title, this.width / 2, 6, TEXT);
-        String line = subtitle.getString();
+        graphics.centeredText(this.font, title, this.width / 2, 6, TEXT);
+        graphics.centeredText(this.font, Component.literal(fit(subtitle.getString())), this.width / 2, 18, subtitleColor());
+    }
+
+    private String fit(String line) {
         int room = this.width - 16;
         if (this.font.width(line) > room) {
-            line = this.font.plainSubstrByWidth(line, Math.max(0, room - this.font.width("..."))) + "...";
+            return this.font.plainSubstrByWidth(line, Math.max(0, room - this.font.width("..."))) + "...";
         }
-        graphics.centeredText(this.font, Component.literal(line), this.width / 2, 18, subtitleColor());
+        return line;
     }
 }
