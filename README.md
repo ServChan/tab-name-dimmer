@@ -8,6 +8,8 @@
 
 Client-side Fabric mod that organizes tracked players into global or per-server groups, then dims, filters, sorts, outlines, or shows them in a configurable Tab/HUD view, with an AFK detector and a line-of-sight cache.
 
+**Руководство / User guide:** [Русский](docs/USER_GUIDE_RU.md) · [English](docs/USER_GUIDE_EN.md)
+
 ## Русский
 
 ### Что это
@@ -30,7 +32,7 @@ Client-side Fabric mod that organizes tracked players into global or per-server 
 
 | Действие | Клавиша по умолчанию | Переназначение |
 |---|---|---|
-| Активировать Tab Name Dimmer | удержание `Shift` (режим настраивается); назначаемая клавиша — `Left Alt` | Options → Controls → Tab Name Dimmer |
+| Активировать Tab Name Dimmer | удержание `Shift` (режим настраивается); назначаемая клавиша — `Left Alt` | Настройки → Управление → Tab Name Dimmer |
 
 Режим активации (удержание `Shift`, удержание клавиши или переключение) выбирается в настройках. Экран настроек — через **Mod Menu**.
 
